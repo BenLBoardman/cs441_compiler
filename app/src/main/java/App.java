@@ -15,10 +15,13 @@ enum TokenType {
     DOT,
     COLON,
     COMMA,
+    EQUALS,
+    UNDERSCORE,
     // Keywords
     THIS,
     IF,
     IFONLY,
+    ELSE,
     WHILE,
     RETURN,
     PRINT,
@@ -30,7 +33,7 @@ enum TokenType {
 }
 
 sealed interface Token 
-    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, If, IfOnly, While, Return, Print, Colon, LeftBrace, RightBrace, Identifier, Eof, This, Comma {
+    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, Equals, Underscore, If, IfOnly, Else, While, Return, Print, Colon, LeftBrace, RightBrace, Identifier, Eof, This, Comma {
     TokenType getType();
 }
 record Number(long value) implements Token {
@@ -66,11 +69,20 @@ record Not() implements Token {
 record Dot() implements Token {
     @Override public TokenType getType() { return TokenType.DOT; }
 }
+record Equals() implements Token {
+    @Override public TokenType getType() { return TokenType.EQUALS; }
+}
+record Underscore() implements Token {
+    @Override public TokenType getType() { return TokenType.UNDERSCORE; }
+}
 record If() implements Token {
     @Override public TokenType getType() { return TokenType.IF; }
 }
 record IfOnly() implements Token {
     @Override public TokenType getType() { return TokenType.IFONLY; }
+}
+record Else() implements Token {
+    @Override public TokenType getType() { return TokenType.ELSE; }
 }
 record While() implements Token {
     @Override public TokenType getType() { return TokenType.WHILE; }
@@ -110,8 +122,11 @@ class Tokenizer {
     private final While w = new While();
     private final If iff = new If();
     private final IfOnly ifonly = new IfOnly();
+    private final Else elseTok = new Else();
     private final Not not = new Not();
     private final AtSign at = new AtSign();
+    private final Equals equals = new Equals();
+    private final Underscore underscore = new Underscore();
     private final Caret caret = new Caret();
     private final Ampersand amp = new Ampersand();
     private final Dot dot = new Dot();
@@ -160,7 +175,9 @@ class Tokenizer {
             case '&': current++; return amp;
             case '.': current++; return dot;
             case ',': current++; return comma;
-        
+            case '=': current++; return equals;
+            case '_': current++; return underscore;
+
             case '+': current++; return new Operator('+');
             case '-': current++; return new Operator('-');
             case '*': current++; return new Operator('*');
@@ -184,6 +201,7 @@ class Tokenizer {
                     switch (fragment) {
                         case "if": return iff;
                         case "ifonly": return ifonly;
+                        case "else": return elseTok;
                         case "while": return w;
                         case "return": return ret;
                         case "print": return print;
@@ -209,6 +227,18 @@ record FieldRead(Expression base, String fieldname) implements Expression {}
 record ClassRef(String classname) implements Expression {}
 record Variable(String name) implements Expression {}
 
+sealed interface Statement
+    permits AssignStmt, VoidStmt, FieldWriteStmt, IfElseStmt, IfOnlyStmt, WhileStmt, ReturnStmt, PrintStmt {
+}
+record AssignStmt(Variable var, Expression rhs) implements Statement{}
+record VoidStmt(Expression rhs) implements Statement{}
+record FieldWriteStmt(Expression base, String fieldname, Expression rhs) implements Statement{}
+record IfElseStmt(Expression cond, ArrayList<Statement> body, ArrayList<Statement> elseBody) implements Statement{}
+record IfOnlyStmt(Expression cond, ArrayList<Statement> body) implements Statement{}
+record WhileStmt(Expression cond, ArrayList<Statement> body) implements Statement{}
+record ReturnStmt(Expression output) implements Statement{}
+record PrintStmt(Expression str) implements Statement{}
+
 class Parser {
     private Tokenizer tok;
     public Parser(Tokenizer t) {
@@ -219,6 +249,7 @@ class Parser {
      * This method attempts to parse an expression starting from the tokenizer's current token,
      * and returns as soon as it has done so
      */
+
     public Expression parseExpr() {
         switch (tok.next()) {
             case Eof eof: throw new IllegalArgumentException("No expression to parse: EOF");
@@ -268,6 +299,7 @@ class Parser {
                     if (punc.getType() == TokenType.COMMA)
                         tok.next(); // throw away the comma
                 }
+                tok.next(); //throw away right-paren
                 return new MethodCall(mbase, ((Identifier)mname).name(), args);
             case AtSign a:
                 Token cname = tok.next();
@@ -279,10 +311,161 @@ class Parser {
                 throw new IllegalArgumentException("Token "+o+" is not a valid start of an expression");
         }
     }
-}
- 
-public class App {
 
+    public Statement parseStmt() {
+        switch(tok.peek()) {
+            case Underscore u:
+                tok.next(); //throw away underscore
+                return parseVoid();
+            case Not n:
+                tok.next(); //throw away !
+                return parseFieldWrite();
+            case If i:
+                tok.next(); //throw away if
+                return parseIfElse();
+            case IfOnly i:
+                tok.next(); //throw away ifonly
+                return parseIfOnly(); 
+            case While w:
+                tok.next(); //throw away while
+                return parseWhile();
+            case Return r:
+                tok.next();
+                return parseReturn();
+            case Print p:
+                tok.next();
+                return parsePrint();
+            default:
+                switch (parseExpr()) { //check for statemenmts starting with variables
+                    case Variable v:
+                        return parseAssignment(v);
+                    default:
+                        throw new IllegalArgumentException("Could not find valid statement or expression");
+                }
+        }
+    }
+
+    //variable assignment var = expr
+    public AssignStmt parseAssignment(Variable v) {
+        if(tok.next() instanceof Equals) {
+            return new AssignStmt(v, parseExpr());
+        }
+        else {
+            throw new IllegalArgumentException("Error: Expected '=' after variable assignment");
+        }   
+    }
+
+    //Void statement _ = expr
+    public VoidStmt parseVoid() {
+        if(tok.next() instanceof Equals) {
+            return new VoidStmt(parseExpr());
+        }
+        else {
+            throw new IllegalArgumentException("Error: Expected '=' to follow '_' in void expression");
+        }      
+    }
+
+    //Field write !expr.field = expr
+    public FieldWriteStmt parseFieldWrite() {
+        Expression base = parseExpr();
+        Token dot = tok.next();
+        if (dot.getType() != TokenType.DOT)
+            throw new IllegalArgumentException("Expected dot but found "+dot);
+        Token fname = tok.next();
+        if (fname.getType() != TokenType.IDENTIFIER)
+            throw new IllegalArgumentException("Expected valid field name but found "+fname);
+        Token eql = tok.next();
+        if (eql.getType() != TokenType.EQUALS)
+            throw new IllegalArgumentException("Expected '=' but found "+eql);
+        Expression rhs = parseExpr();
+        return new FieldWriteStmt(base, ((Identifier)fname).name(), rhs);                   
+    }
+
+    //if e: { <newline> <one or more statements> } else { <newline> <one or more statements> }
+    public IfElseStmt parseIfElse() {
+        Expression cond = parseExpr();
+        Token lbrace = tok.next();
+        if(lbrace.getType() != TokenType.LEFT_BRACE)
+            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+        ArrayList<Statement> ifBody = new ArrayList<Statement>();
+        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+            ifBody.add(parseStmt());
+            if(tok.peek().getType() == TokenType.EOF) {
+                throw new IllegalArgumentException("Reached EOF while parsing if statement");
+            }
+        }
+        tok.next(); //throw out right brace
+        System.out.println("Parsed if body");
+        Token elseT = tok.next();
+        if(elseT.getType() != TokenType.ELSE) 
+            throw new IllegalArgumentException("Expected 'else' but found "+elseT);
+        lbrace = tok.next();
+        if(lbrace.getType() != TokenType.LEFT_BRACE)
+            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+        ArrayList<Statement> elseBody = new ArrayList<Statement>();
+        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+            elseBody.add(parseStmt());
+            if(tok.peek().getType() == TokenType.EOF) {
+                throw new IllegalArgumentException("Reached EOF while parsing else statement");
+            }
+        }
+        tok.next(); //throw out right brace
+        return new IfElseStmt(cond, ifBody, elseBody);
+    }
+
+    //ifonly e: { <newline> <one or more statements> }
+    public IfOnlyStmt parseIfOnly() {
+        Expression cond = parseExpr();
+        Token lbrace = tok.next();
+        if(lbrace.getType() != TokenType.LEFT_BRACE)
+            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+        ArrayList<Statement> ifBody = new ArrayList<Statement>();
+        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+            ifBody.add(parseStmt());
+            if(tok.peek().getType() == TokenType.EOF) {
+                throw new IllegalArgumentException("Reached EOF while parsing if statement");
+            }
+        }        
+        tok.next(); //throw out right brace
+        return new IfOnlyStmt(cond, ifBody);
+    }
+
+    //while e: { <newline> <one or more statements> }
+    public WhileStmt parseWhile() {
+                Expression cond = parseExpr();
+        Token lbrace = tok.next();
+        if(lbrace.getType() != TokenType.LEFT_BRACE)
+            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+        ArrayList<Statement> ifBody = new ArrayList<Statement>();
+        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+            ifBody.add(parseStmt());
+            if(tok.peek().getType() == TokenType.EOF) {
+                throw new IllegalArgumentException("Reached EOF while parsing if statement");
+            }
+        }        
+        tok.next(); //throw out right brace
+        return new WhileStmt(cond, ifBody);
+    }
+
+    public ReturnStmt parseReturn() {
+        Expression out = parseExpr();
+        return new ReturnStmt(out);
+    }
+
+    public PrintStmt parsePrint() {
+        Token lparen = tok.next();
+        if(lparen.getType() != TokenType.LEFT_PAREN)
+            throw new IllegalArgumentException("Expected '(' but found "+lparen);
+        Expression prt = parseExpr();
+        Token rparen = tok.next();
+        if(rparen.getType() != TokenType.RIGHT_PAREN)
+            throw new IllegalArgumentException("Expected '(' but found "+rparen);
+        return new PrintStmt(prt);
+    }
+
+}
+
+public class App {
     public static void main(String[] args) {
         if (args.length < 2) {
             System.err.println("Usage: <comp> {tokenize|parseExpr} [args...]");
@@ -295,6 +478,7 @@ public class App {
             sb.append(" "); // Without this, separate identifiers will run together
         }
         Tokenizer tok = new Tokenizer(sb.toString());
+        Parser p;
         switch (args[0]) {
             case "tokenize":
                 while (tok.peek().getType() != TokenType.EOF) {
@@ -302,8 +486,12 @@ public class App {
                 }
                 break;
             case "parseExpr":
-                Parser p = new Parser(tok);
+                p = new Parser(tok);
                 System.out.println(p.parseExpr());
+                break;
+            case "parseStmt":
+                p = new Parser(tok);
+                System.out.println(p.parseStmt());
                 break;
             default:
                 System.err.println("Unsupported subcommand: "+args[0]);
