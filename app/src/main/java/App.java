@@ -8,6 +8,8 @@ enum TokenType {
     RIGHT_PAREN,
     LEFT_BRACE,
     RIGHT_BRACE,
+    LEFT_BRACK,
+    RIGHT_BRACK,
     CARET,
     AMPERSAND,
     ATSIGN,
@@ -15,7 +17,6 @@ enum TokenType {
     DOT,
     COLON,
     COMMA,
-    EQUALS,
     UNDERSCORE,
     // Keywords
     THIS,
@@ -24,7 +25,13 @@ enum TokenType {
     ELSE,
     WHILE,
     RETURN,
+    METHOD,
+    CLASS,
     PRINT,
+    FIELDS,
+    WITH,
+    LOCALS,
+    MAIN,
     EOF,
     // Tokens with data
     OPERATOR,
@@ -33,82 +40,45 @@ enum TokenType {
 }
 
 sealed interface Token 
-    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, Equals, Underscore, If, IfOnly, Else, While, Return, Print, Colon, LeftBrace, RightBrace, Identifier, Eof, This, Comma {
+    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, Underscore, If, IfOnly, Else, While, Return, TMethod, TClass, Print, 
+    Fields, With, Locals, Main, Colon, LeftBrace, RightBrace, LeftBrack, RightBrack, Identifier, Eof, This, Comma {
     TokenType getType();
 }
-record Number(long value) implements Token {
-    @Override public TokenType getType() { return TokenType.NUMBER; }
-}
-record LeftParen() implements Token {
-    @Override public TokenType getType() { return TokenType.LEFT_PAREN; }
-}
-record RightParen() implements Token {
-    @Override public TokenType getType() { return TokenType.RIGHT_PAREN; }
-}
-record LeftBrace() implements Token {
-    @Override public TokenType getType() { return TokenType.LEFT_BRACE; }
-}
-record RightBrace() implements Token {
-    @Override public TokenType getType() { return TokenType.RIGHT_BRACE; }
-}
+record Number(long value) implements Token { @Override public TokenType getType() { return TokenType.NUMBER; } }
+record LeftParen() implements Token { @Override public TokenType getType() { return TokenType.LEFT_PAREN; } }
+record RightParen() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_PAREN; } }
+record LeftBrace() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACE; } }
+record RightBrace() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACE; } }
+record LeftBrack() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACK; } }
+record RightBrack() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACK; } }
 record Operator(char op) implements Token {
     @Override public TokenType getType() { return TokenType.OPERATOR; }
+    public char getOp() { return this.op; }
 }
-record Caret() implements Token {
-    @Override public TokenType getType() { return TokenType.CARET; }
-}
-record Ampersand() implements Token {
-    @Override public TokenType getType() { return TokenType.AMPERSAND; }
-}
-record AtSign() implements Token {
-    @Override public TokenType getType() { return TokenType.ATSIGN; }
-}
-record Not() implements Token {
-    @Override public TokenType getType() { return TokenType.NOT; }
-}
-record Dot() implements Token {
-    @Override public TokenType getType() { return TokenType.DOT; }
-}
-record Equals() implements Token {
-    @Override public TokenType getType() { return TokenType.EQUALS; }
-}
-record Underscore() implements Token {
-    @Override public TokenType getType() { return TokenType.UNDERSCORE; }
-}
-record If() implements Token {
-    @Override public TokenType getType() { return TokenType.IF; }
-}
-record IfOnly() implements Token {
-    @Override public TokenType getType() { return TokenType.IFONLY; }
-}
-record Else() implements Token {
-    @Override public TokenType getType() { return TokenType.ELSE; }
-}
-record While() implements Token {
-    @Override public TokenType getType() { return TokenType.WHILE; }
-}
-record Return() implements Token {
-    @Override public TokenType getType() { return TokenType.RETURN; }
-}
-record Print() implements Token {
-    @Override public TokenType getType() { return TokenType.PRINT; }
-}
-record Colon() implements Token {
-    @Override public TokenType getType() { return TokenType.COLON; }
-}
-record Comma() implements Token {
-    @Override public TokenType getType() { return TokenType.COMMA; }
-}
-record Eof() implements Token {
-    @Override public TokenType getType() { return TokenType.EOF; }
-}
-record Identifier(String name) implements Token {
-    @Override public TokenType getType() { return TokenType.IDENTIFIER; }
-}
-record This() implements Token {
-    @Override public TokenType getType() { return TokenType.THIS; }
-}
-
+record Caret() implements Token { @Override public TokenType getType() { return TokenType.CARET; } }
+record Ampersand() implements Token { @Override public TokenType getType() { return TokenType.AMPERSAND; } }
+record AtSign() implements Token { @Override public TokenType getType() { return TokenType.ATSIGN; } }
+record Not() implements Token { @Override public TokenType getType() { return TokenType.NOT; } }
+record Dot() implements Token { @Override public TokenType getType() { return TokenType.DOT; } }
+record Underscore() implements Token { @Override public TokenType getType() { return TokenType.UNDERSCORE; } }
+record If() implements Token { @Override public TokenType getType() { return TokenType.IF; } }
+record IfOnly() implements Token { @Override public TokenType getType() { return TokenType.IFONLY; } }
+record Else() implements Token { @Override public TokenType getType() { return TokenType.ELSE; } }
+record While() implements Token { @Override public TokenType getType() { return TokenType.WHILE; } }
+record Return() implements Token { @Override public TokenType getType() { return TokenType.RETURN; } }
+record TMethod() implements Token { @Override public TokenType getType() { return TokenType.METHOD; } }
+record TClass() implements Token { @Override public TokenType getType() { return TokenType.CLASS; } }
+record Print() implements Token { @Override public TokenType getType() { return TokenType.PRINT; } }
+record With() implements Token { @Override public TokenType getType() { return TokenType.WITH; } }
+record Fields() implements Token { @Override public TokenType getType() { return TokenType.FIELDS; } }
+record Main() implements Token { @Override public TokenType getType() { return TokenType.MAIN; } }
+record Locals() implements Token { @Override public TokenType getType() { return TokenType.LOCALS; } }
+record Colon() implements Token { @Override public TokenType getType() { return TokenType.COLON; } }
+record Comma() implements Token { @Override public TokenType getType() { return TokenType.COMMA; } }
+record Eof() implements Token { @Override public TokenType getType() { return TokenType.EOF; } }
+record Identifier(String name) implements Token { @Override public TokenType getType() { return TokenType.IDENTIFIER; } }
+record This() implements Token { @Override public TokenType getType() { return TokenType.THIS; } }
+ 
 class Tokenizer {
 
     // We'll pre-allocate and reuse common tokens without data
@@ -116,8 +86,16 @@ class Tokenizer {
     private final RightParen rp = new RightParen();
     private final LeftBrace lb = new LeftBrace();
     private final RightBrace rb = new RightBrace();
+    private final LeftBrack lbk = new LeftBrack();
+    private final RightBrack rbk = new RightBrack();
     private final Colon colon = new Colon();
+    private final TMethod method = new TMethod();
+    private final TClass tClass = new TClass();
     private final Print print = new Print();
+    private final With with = new With();
+    private final Fields fields = new Fields();
+    private final Main main = new Main();
+    private final Locals locals = new Locals();
     private final Return ret = new Return();
     private final While w = new While();
     private final If iff = new If();
@@ -125,7 +103,6 @@ class Tokenizer {
     private final Else elseTok = new Else();
     private final Not not = new Not();
     private final AtSign at = new AtSign();
-    private final Equals equals = new Equals();
     private final Underscore underscore = new Underscore();
     private final Caret caret = new Caret();
     private final Ampersand amp = new Ampersand();
@@ -168,6 +145,8 @@ class Tokenizer {
             case ')': current++; return rp;
             case '{': current++; return lb;
             case '}': current++; return rb;
+            case '[': current++; return lbk;
+            case ']': current++; return rbk;
             case ':': current++; return colon;
             case '!': current++; return not;
             case '@': current++; return at;
@@ -175,13 +154,13 @@ class Tokenizer {
             case '&': current++; return amp;
             case '.': current++; return dot;
             case ',': current++; return comma;
-            case '=': current++; return equals;
             case '_': current++; return underscore;
 
             case '+': current++; return new Operator('+');
             case '-': current++; return new Operator('-');
             case '*': current++; return new Operator('*');
             case '/': current++; return new Operator('/');
+            case '=': current++; return new Operator('=');
             
             default:
                 if (Character.isDigit(text.charAt(current))) {
@@ -204,8 +183,14 @@ class Tokenizer {
                         case "else": return elseTok;
                         case "while": return w;
                         case "return": return ret;
+                        case "method": return method;
+                        case "class": return tClass;
                         case "print": return print;
                         case "this": return th;
+                        case "with": return with;
+                        case "fields": return fields;
+                        case "main": return main;
+                        case "locals": return locals;
                         default: return new Identifier(fragment);
                     }
                 } else {
@@ -215,6 +200,7 @@ class Tokenizer {
     }
 }
 
+//Expressions
 sealed interface Expression 
     permits Constant, Binop, MethodCall, FieldRead, ClassRef, ThisExpr, Variable {
     // TODO: You'll need to provide your own methods for operations you care about
@@ -227,28 +213,50 @@ record FieldRead(Expression base, String fieldname) implements Expression {}
 record ClassRef(String classname) implements Expression {}
 record Variable(String name) implements Expression {}
 
+
+enum StatementType {
+    ASSIGN,
+    VOID,
+    FIELDWRITE,
+    IFELSE,
+    IFONLY,
+    WHILE,
+    RETURN,
+    PRINT
+}
+//Statements
 sealed interface Statement
     permits AssignStmt, VoidStmt, FieldWriteStmt, IfElseStmt, IfOnlyStmt, WhileStmt, ReturnStmt, PrintStmt {
+        public StatementType getType();
 }
-record AssignStmt(Variable var, Expression rhs) implements Statement{}
-record VoidStmt(Expression rhs) implements Statement{}
-record FieldWriteStmt(Expression base, String fieldname, Expression rhs) implements Statement{}
-record IfElseStmt(Expression cond, ArrayList<Statement> body, ArrayList<Statement> elseBody) implements Statement{}
-record IfOnlyStmt(Expression cond, ArrayList<Statement> body) implements Statement{}
-record WhileStmt(Expression cond, ArrayList<Statement> body) implements Statement{}
-record ReturnStmt(Expression output) implements Statement{}
-record PrintStmt(Expression str) implements Statement{}
+record AssignStmt(Variable var, Expression rhs) implements Statement{ @Override public StatementType getType(){ return StatementType.ASSIGN; } }
+record VoidStmt(Expression rhs) implements Statement{ @Override public StatementType getType(){ return StatementType.VOID; } }
+record FieldWriteStmt(Expression base, String fieldname, Expression rhs) implements Statement{ @Override public StatementType getType(){ return StatementType.FIELDWRITE; } }
+record IfElseStmt(Expression cond, ArrayList<Statement> body, ArrayList<Statement> elseBody) implements Statement{ @Override public StatementType getType(){ return StatementType.IFELSE; } }
+record IfOnlyStmt(Expression cond, ArrayList<Statement> body) implements Statement{ @Override public StatementType getType(){ return StatementType.IFONLY; } }
+record WhileStmt(Expression cond, ArrayList<Statement> body) implements Statement{ @Override public StatementType getType(){ return StatementType.WHILE; } }
+record ReturnStmt(Expression output) implements Statement{ @Override public StatementType getType(){ return StatementType.RETURN; } }
+record PrintStmt(Expression str) implements Statement{ @Override public StatementType getType(){ return StatementType.PRINT; } }
+
+//Method & Class
+record Method(String name, ArrayList<String> args, ArrayList<String> locals, ArrayList<Statement> body){}
+record Class(String name, ArrayList<String> fields, ArrayList<Method> methods){}
+
+class ParsedCode {
+    public final Method main;
+    public final ArrayList<Class> classes;
+
+    public ParsedCode(Method main, ArrayList<Class> classes) {
+        this.main = main;
+        this.classes = classes;
+    }
+}
 
 class Parser {
     private Tokenizer tok;
     public Parser(Tokenizer t) {
         tok = t;
     }
-    // TODO: You'll need to add parseStatement, parseClass, etc.
-    /*
-     * This method attempts to parse an expression starting from the tokenizer's current token,
-     * and returns as soon as it has done so
-     */
 
     public Expression parseExpr() {
         switch (tok.next()) {
@@ -292,12 +300,13 @@ class Parser {
                 ArrayList<Expression> args = new ArrayList<>();
                 while (tok.peek().getType() != TokenType.RIGHT_PAREN) {
                     Expression e = parseExpr();
-                    System.err.println("Parsed arg: "+e);
                     args.add(e);
                     // Now either a paren or a comma
                     Token punc = tok.peek();
                     if (punc.getType() == TokenType.COMMA)
                         tok.next(); // throw away the comma
+                    else if(punc.getType() != TokenType.RIGHT_PAREN)
+                        throw new IllegalArgumentException("Expected either ',' or ')', found "+punc);
                 }
                 tok.next(); //throw away right-paren
                 return new MethodCall(mbase, ((Identifier)mname).name(), args);
@@ -313,157 +322,248 @@ class Parser {
     }
 
     public Statement parseStmt() {
+        Token eql, colon, lbrace;
+        Expression cond;
+        ArrayList<Statement> ifBody;
         switch(tok.peek()) {
-            case Underscore u:
-                tok.next(); //throw away underscore
-                return parseVoid();
-            case Not n:
-                tok.next(); //throw away !
-                return parseFieldWrite();
-            case If i:
-                tok.next(); //throw away if
-                return parseIfElse();
-            case IfOnly i:
-                tok.next(); //throw away ifonly
-                return parseIfOnly(); 
-            case While w:
-                tok.next(); //throw away while
-                return parseWhile();
-            case Return r:
+            case Underscore u: //void: _ = <expr>
                 tok.next();
-                return parseReturn();
+                eql = tok.next();
+                    if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                        throw new IllegalArgumentException("Expected '=' but found "+eql);
+                return new VoidStmt(parseExpr());
+            case Not n: //Field write !expr.field = expr
+                tok.next();
+                Expression base = parseExpr();
+                Token dot = tok.next();
+                if (dot.getType() != TokenType.DOT)
+                    throw new IllegalArgumentException("Expected dot but found " + dot);
+                Token fname = tok.next();
+                if (fname.getType() != TokenType.IDENTIFIER)
+                    throw new IllegalArgumentException("Expected valid field name but found " + fname);
+                eql = tok.next();
+                if (eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                    throw new IllegalArgumentException("Expected '=' but found " + eql);
+                Expression rhs = parseExpr();
+                return new FieldWriteStmt(base, ((Identifier) fname).name(), rhs);
+            case If i: //if e: { <newline> <one or more statements> } else { <newline> <one or more statements> }
+                tok.next();
+                cond = parseExpr();
+                colon = tok.next();
+                if (colon.getType() != TokenType.COLON)
+                    throw new IllegalArgumentException("Expected ':' but found " + colon);
+                lbrace = tok.next();
+                if (lbrace.getType() != TokenType.LEFT_BRACE)
+                    throw new IllegalArgumentException("Expected '{' but found " + lbrace);
+                ifBody = new ArrayList<Statement>();
+                while (tok.peek().getType() != TokenType.RIGHT_BRACE) {
+                    ifBody.add(parseStmt());
+                    if (tok.peek().getType() == TokenType.EOF)
+                        throw new IllegalArgumentException("Reached EOF while parsing if statement");
+                }
+                tok.next(); // throw out right brace
+                System.out.println("Parsed if body");
+                Token elseT = tok.next();
+                if (elseT.getType() != TokenType.ELSE)
+                    throw new IllegalArgumentException("Expected 'else' but found " + elseT);
+                lbrace = tok.next();
+                if (lbrace.getType() != TokenType.LEFT_BRACE)
+                    throw new IllegalArgumentException("Expected '{' but found " + lbrace);
+                ArrayList<Statement> elseBody = new ArrayList<Statement>();
+                while (tok.peek().getType() != TokenType.RIGHT_BRACE) {
+                    elseBody.add(parseStmt());
+                    if (tok.peek().getType() == TokenType.EOF)
+                        throw new IllegalArgumentException("Reached EOF while parsing else statement");
+                }
+                tok.next(); // throw out right brace
+                return new IfElseStmt(cond, ifBody, elseBody);
+            case IfOnly i: //ifonly e: { <newline> <one or more statements> }
+                tok.next();
+                cond = parseExpr();
+                colon = tok.next();
+                if(colon.getType() != TokenType.COLON)
+                    throw new IllegalArgumentException("Expected ':' but found "+colon);
+                lbrace = tok.next();
+                if(lbrace.getType() != TokenType.LEFT_BRACE)
+                    throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+                ifBody = new ArrayList<Statement>();
+                while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+                    ifBody.add(parseStmt());
+                    if(tok.peek().getType() == TokenType.EOF)
+                        throw new IllegalArgumentException("Reached EOF while parsing if statement");
+                }        
+                tok.next(); //throw out right brace
+                return new IfOnlyStmt(cond, ifBody); 
+            case While w: //while e: { <newline> <one or more statements> }
+                tok.next();
+                cond = parseExpr();
+                colon = tok.next();
+                if(colon.getType() != TokenType.COLON)
+                    throw new IllegalArgumentException("Expected ':' but found "+colon);
+                lbrace = tok.next();
+                if(lbrace.getType() != TokenType.LEFT_BRACE)
+                    throw new IllegalArgumentException("Expected '{' but found "+lbrace);
+                ArrayList<Statement> body = new ArrayList<Statement>();
+                while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
+                    body.add(parseStmt());
+                    if(tok.peek().getType() == TokenType.EOF)
+                        throw new IllegalArgumentException("Reached EOF while parsing if statement");
+                }        
+                tok.next(); //throw out right brace
+                return new WhileStmt(cond, body);
+            case Return r: //return: return(expr)
+                tok.next();
+                Expression out = parseExpr();
+                return new ReturnStmt(out);
             case Print p:
-                tok.next();
-                return parsePrint();
-            default:
-                switch (parseExpr()) { //check for statemenmts starting with variables
-                    case Variable v:
-                        return parseAssignment(v);
+                tok.next(); //print: print(expr)
+                Token lparen = tok.next();
+                if(lparen.getType() != TokenType.LEFT_PAREN)
+                    throw new IllegalArgumentException("Expected '(' but found "+lparen);
+                Expression prt = parseExpr();
+                Token rparen = tok.next();
+                if(rparen.getType() != TokenType.RIGHT_PAREN)
+                    throw new IllegalArgumentException("Expected ')' but found "+rparen);
+                return new PrintStmt(prt);
+            default: //nothing else, check if its a start of an expression and see if its a variable assignment
+                switch (parseExpr()) {
+                    case Variable v: // assignment: v = <expr>
+                        eql = tok.next();
+                        if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                            throw new IllegalArgumentException("Expected '=' but found "+eql);
+                        return new AssignStmt(v, parseExpr());
                     default:
                         throw new IllegalArgumentException("Could not find valid statement or expression");
                 }
         }
     }
 
-    //variable assignment var = expr
-    public AssignStmt parseAssignment(Variable v) {
-        if(tok.next() instanceof Equals) {
-            return new AssignStmt(v, parseExpr());
-        }
-        else {
-            throw new IllegalArgumentException("Error: Expected '=' after variable assignment");
-        }   
-    }
-
-    //Void statement _ = expr
-    public VoidStmt parseVoid() {
-        if(tok.next() instanceof Equals) {
-            return new VoidStmt(parseExpr());
-        }
-        else {
-            throw new IllegalArgumentException("Error: Expected '=' to follow '_' in void expression");
-        }      
-    }
-
-    //Field write !expr.field = expr
-    public FieldWriteStmt parseFieldWrite() {
-        Expression base = parseExpr();
-        Token dot = tok.next();
-        if (dot.getType() != TokenType.DOT)
-            throw new IllegalArgumentException("Expected dot but found "+dot);
-        Token fname = tok.next();
-        if (fname.getType() != TokenType.IDENTIFIER)
-            throw new IllegalArgumentException("Expected valid field name but found "+fname);
-        Token eql = tok.next();
-        if (eql.getType() != TokenType.EQUALS)
-            throw new IllegalArgumentException("Expected '=' but found "+eql);
-        Expression rhs = parseExpr();
-        return new FieldWriteStmt(base, ((Identifier)fname).name(), rhs);                   
-    }
-
-    //if e: { <newline> <one or more statements> } else { <newline> <one or more statements> }
-    public IfElseStmt parseIfElse() {
-        Expression cond = parseExpr();
-        Token lbrace = tok.next();
-        if(lbrace.getType() != TokenType.LEFT_BRACE)
-            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-        ArrayList<Statement> ifBody = new ArrayList<Statement>();
-        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
-            ifBody.add(parseStmt());
-            if(tok.peek().getType() == TokenType.EOF) {
-                throw new IllegalArgumentException("Reached EOF while parsing if statement");
-            }
-        }
-        tok.next(); //throw out right brace
-        System.out.println("Parsed if body");
-        Token elseT = tok.next();
-        if(elseT.getType() != TokenType.ELSE) 
-            throw new IllegalArgumentException("Expected 'else' but found "+elseT);
-        lbrace = tok.next();
-        if(lbrace.getType() != TokenType.LEFT_BRACE)
-            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-        ArrayList<Statement> elseBody = new ArrayList<Statement>();
-        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
-            elseBody.add(parseStmt());
-            if(tok.peek().getType() == TokenType.EOF) {
-                throw new IllegalArgumentException("Reached EOF while parsing else statement");
-            }
-        }
-        tok.next(); //throw out right brace
-        return new IfElseStmt(cond, ifBody, elseBody);
-    }
-
-    //ifonly e: { <newline> <one or more statements> }
-    public IfOnlyStmt parseIfOnly() {
-        Expression cond = parseExpr();
-        Token lbrace = tok.next();
-        if(lbrace.getType() != TokenType.LEFT_BRACE)
-            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-        ArrayList<Statement> ifBody = new ArrayList<Statement>();
-        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
-            ifBody.add(parseStmt());
-            if(tok.peek().getType() == TokenType.EOF) {
-                throw new IllegalArgumentException("Reached EOF while parsing if statement");
-            }
-        }        
-        tok.next(); //throw out right brace
-        return new IfOnlyStmt(cond, ifBody);
-    }
-
-    //while e: { <newline> <one or more statements> }
-    public WhileStmt parseWhile() {
-                Expression cond = parseExpr();
-        Token lbrace = tok.next();
-        if(lbrace.getType() != TokenType.LEFT_BRACE)
-            throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-        ArrayList<Statement> ifBody = new ArrayList<Statement>();
-        while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
-            ifBody.add(parseStmt());
-            if(tok.peek().getType() == TokenType.EOF) {
-                throw new IllegalArgumentException("Reached EOF while parsing if statement");
-            }
-        }        
-        tok.next(); //throw out right brace
-        return new WhileStmt(cond, ifBody);
-    }
-
-    public ReturnStmt parseReturn() {
-        Expression out = parseExpr();
-        return new ReturnStmt(out);
-    }
-
-    public PrintStmt parsePrint() {
+    public Method parseMethod() {
+        Token method = tok.next();
+        if(method.getType() != TokenType.METHOD)
+            throw new IllegalArgumentException("Expected 'method', found"+method);
+        Token nameTok = tok.next();
+        if(nameTok.getType() != TokenType.IDENTIFIER)
+            throw new IllegalArgumentException(nameTok+" is not a valid method name");
+        String name = ((Identifier)nameTok).name();
         Token lparen = tok.next();
         if(lparen.getType() != TokenType.LEFT_PAREN)
-            throw new IllegalArgumentException("Expected '(' but found "+lparen);
-        Expression prt = parseExpr();
-        Token rparen = tok.next();
-        if(rparen.getType() != TokenType.RIGHT_PAREN)
-            throw new IllegalArgumentException("Expected '(' but found "+rparen);
-        return new PrintStmt(prt);
+            throw new IllegalArgumentException("Expected '(', found"+lparen);
+        ArrayList<String> args = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.RIGHT_PAREN) {
+            Token id = tok.next();
+            if(id.getType() != TokenType.IDENTIFIER)
+                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+            args.add(((Identifier)id).name());
+            Token punc = tok.peek();
+            if (punc.getType() == TokenType.COMMA)
+                tok.next(); // throw away the comma
+            else if(punc.getType() != TokenType.RIGHT_PAREN)
+                throw new IllegalArgumentException("Expected either ',' or ')', found "+punc);
+        }
+        tok.next(); //throw out right paren
+        Token with = tok.next();
+        if(with.getType() != TokenType.WITH) 
+            throw new IllegalArgumentException("Expected 'with', found"+with);
+        Token tLocals = tok.next();
+        if(tLocals.getType() != TokenType.LOCALS) 
+            throw new IllegalArgumentException("Expected 'locals', found"+tLocals);
+        ArrayList<String> locals = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.COLON) {
+            Token id = tok.next();
+            if(id.getType() != TokenType.IDENTIFIER)
+                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+            locals.add(((Identifier)id).name());
+            Token punc = tok.peek();
+            if (punc.getType() == TokenType.COMMA)
+                tok.next(); // throw away the comma
+            else if(punc.getType() != TokenType.COLON)
+                throw new IllegalArgumentException("Expected either ',' or ':', found "+punc);
+        }
+        tok.next(); //throw away colon
+        ArrayList<Statement> body = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.RETURN) {
+            body.add(parseStmt());
+        }
+        body.add(parseStmt());
+        return new Method(name, args, locals, body);
     }
 
+    public Method parseMain() {
+        Token method = tok.next();
+        if(method.getType() != TokenType.MAIN)
+            throw new IllegalArgumentException("Expected 'main', found"+method);
+        String name = "main";
+        Token with = tok.next();
+        if(with.getType() != TokenType.WITH) 
+            throw new IllegalArgumentException("Expected 'with', found"+with);
+        ArrayList<String> locals = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.COLON) {
+            Token id = tok.next();
+            if(id.getType() != TokenType.IDENTIFIER)
+                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+            locals.add(((Identifier)id).name());
+            Token punc = tok.peek();
+            if (punc.getType() == TokenType.COMMA)
+                tok.next(); // throw away the comma
+            else if(punc.getType() != TokenType.COLON)
+                throw new IllegalArgumentException("Expected either ',' or ':', found "+punc);
+        }
+        tok.next(); //throw away colon
+        ArrayList<Statement> body = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.EOF) {
+            body.add(parseStmt());
+        }
+        body.add(parseStmt());
+        return new Method(name, null, locals, body);
+    }
+
+    public Class parseClass () {
+        Token tClass = tok.next();
+        if(tClass.getType() != TokenType.CLASS)
+            throw new IllegalArgumentException("Expected top-level class declaration, found"+tClass);
+        Token nameTok = tok.next();
+        if(nameTok.getType() != TokenType.IDENTIFIER)
+            throw new IllegalArgumentException(nameTok+" is not a valid class name");
+        String name = ((Identifier)nameTok).name();
+        Token lbrack = tok.next();
+        if(lbrack.getType() != TokenType.LEFT_BRACK)
+            throw new IllegalArgumentException("Expected '[', found"+lbrack);
+        Token tFields = tok.next();
+        if(tFields.getType() != TokenType.FIELDS) 
+            throw new IllegalArgumentException("Expected 'fields', found"+tFields);
+        ArrayList<String> fields = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.METHOD) {
+            Token id = tok.next();
+            if(id.getType() != TokenType.IDENTIFIER)
+                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+            fields.add(((Identifier)id).name());
+            Token punc = tok.peek();
+            if (punc.getType() == TokenType.COMMA)
+                tok.next(); // throw away the comma
+            else if(punc.getType() != TokenType.METHOD)
+                throw new IllegalArgumentException("Expected either ',' or 'method', found "+punc);
+        }
+        ArrayList<Method> methods = new ArrayList<>();
+        while(tok.peek().getType() != TokenType.RIGHT_BRACK) {
+            methods.add(parseMethod());
+        } 
+        tok.next(); //throw away right bracket
+        return new Class(name, fields, methods);
+    }
+
+    public ParsedCode parse() { // parse EVERYTHING in the input as a series of Classes
+        ArrayList<Class> classes = new ArrayList<>();
+        while (tok.peek().getType() != TokenType.METHOD) {
+            classes.add(parseClass());
+        }
+        Method main = parseMain();
+        return new ParsedCode(main, classes);
+    }
 }
+
+
+
 
 public class App {
     public static void main(String[] args) {
@@ -493,6 +593,17 @@ public class App {
                 p = new Parser(tok);
                 System.out.println(p.parseStmt());
                 break;
+            case "parseMethod":
+                p = new Parser(tok);
+                System.out.println(p.parseMethod());
+                break;
+            case "parseClass":
+                p = new Parser(tok);
+                System.out.println(p.parseClass());
+                break;
+            case "parse":
+                p = new Parser(tok);
+                System.out.println(p.parse());
             default:
                 System.err.println("Unsupported subcommand: "+args[0]);
         }
