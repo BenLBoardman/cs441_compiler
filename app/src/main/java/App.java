@@ -1,6 +1,11 @@
-import java.lang.StringBuilder; 
+import java.lang.StringBuilder;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+
+import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
+
 
 enum TokenType { 
     // Fixed punctuation
@@ -51,9 +56,9 @@ record LeftBrace() implements Token { @Override public TokenType getType() { ret
 record RightBrace() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACE; } }
 record LeftBrack() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACK; } }
 record RightBrack() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACK; } }
-record Operator(char op) implements Token {
+record Operator(String op) implements Token {
     @Override public TokenType getType() { return TokenType.OPERATOR; }
-    public char getOp() { return this.op; }
+    public String getOp() { return this.op; }
 }
 record Caret() implements Token { @Override public TokenType getType() { return TokenType.CARET; } }
 record Ampersand() implements Token { @Override public TokenType getType() { return TokenType.AMPERSAND; } }
@@ -78,7 +83,7 @@ record Comma() implements Token { @Override public TokenType getType() { return 
 record Eof() implements Token { @Override public TokenType getType() { return TokenType.EOF; } }
 record Identifier(String name) implements Token { @Override public TokenType getType() { return TokenType.IDENTIFIER; } }
 record This() implements Token { @Override public TokenType getType() { return TokenType.THIS; } }
- 
+
 class Tokenizer {
 
     // We'll pre-allocate and reuse common tokens without data
@@ -156,11 +161,28 @@ class Tokenizer {
             case ',': current++; return comma;
             case '_': current++; return underscore;
 
-            case '+': current++; return new Operator('+');
-            case '-': current++; return new Operator('-');
-            case '*': current++; return new Operator('*');
-            case '/': current++; return new Operator('/');
-            case '=': current++; return new Operator('=');
+            case '<': 
+                current++; 
+                if (text.charAt(current) != '=')
+                    return new Operator("<");
+                current++;
+                return new Operator("<=");
+            case '>':
+                current++; 
+                if (text.charAt(current) != '=')
+                    return new Operator(">");
+                current++;
+                return new Operator(">=");
+            case '+': current++; return new Operator("+");
+            case '-': current++; return new Operator("-");
+            case '*': current++; return new Operator("*");
+            case '/': current++; return new Operator("/");
+            case '=': 
+                current++; 
+                if (text.charAt(current) != '=')
+                    return new Operator("=");
+                current++;
+                return new Operator("==");
             
             default:
                 if (Character.isDigit(text.charAt(current))) {
@@ -207,7 +229,7 @@ sealed interface Expression
 }
 record ThisExpr() implements Expression {}
 record Constant(long value) implements Expression {}
-record Binop(Expression lhs, char op, Expression rhs) implements Expression {}
+record Binop(Expression lhs, String op, Expression rhs) implements Expression {}
 record MethodCall(Expression base, String methodname, List<Expression> args) implements Expression {}
 record FieldRead(Expression base, String fieldname) implements Expression {}
 record ClassRef(String classname) implements Expression {}
@@ -249,6 +271,18 @@ class ParsedCode {
     public ParsedCode(Method main, ArrayList<Class> classes) {
         this.main = main;
         this.classes = classes;
+    }
+
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("`````````````````````\n\tPARSED CODE\n");
+        for (Class c : classes) {
+            sb.append("CLASS\n");
+            sb.append(c.toString() + "\n");
+        }
+        sb.append("MAIN\n");
+        sb.append(main.toString());
+        return sb.toString();
     }
 }
 
@@ -329,7 +363,7 @@ class Parser {
             case Underscore u: //void: _ = <expr>
                 tok.next();
                 eql = tok.next();
-                    if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                    if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp().equals("="))
                         throw new IllegalArgumentException("Expected '=' but found "+eql);
                 return new VoidStmt(parseExpr());
             case Not n: //Field write !expr.field = expr
@@ -342,7 +376,7 @@ class Parser {
                 if (fname.getType() != TokenType.IDENTIFIER)
                     throw new IllegalArgumentException("Expected valid field name but found " + fname);
                 eql = tok.next();
-                if (eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                if (eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp().equals("="))
                     throw new IllegalArgumentException("Expected '=' but found " + eql);
                 Expression rhs = parseExpr();
                 return new FieldWriteStmt(base, ((Identifier) fname).name(), rhs);
@@ -362,7 +396,6 @@ class Parser {
                         throw new IllegalArgumentException("Reached EOF while parsing if statement");
                 }
                 tok.next(); // throw out right brace
-                System.out.println("Parsed if body");
                 Token elseT = tok.next();
                 if (elseT.getType() != TokenType.ELSE)
                     throw new IllegalArgumentException("Expected 'else' but found " + elseT);
@@ -429,7 +462,7 @@ class Parser {
                 switch (parseExpr()) {
                     case Variable v: // assignment: v = <expr>
                         eql = tok.next();
-                        if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp() == '=')
+                        if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp().equals("="))
                             throw new IllegalArgumentException("Expected '=' but found "+eql);
                         return new AssignStmt(v, parseExpr());
                     default:
@@ -453,7 +486,7 @@ class Parser {
         while(tok.peek().getType() != TokenType.RIGHT_PAREN) {
             Token id = tok.next();
             if(id.getType() != TokenType.IDENTIFIER)
-                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+                throw new IllegalArgumentException("Error parsing arg "+(args.size()+1)+" of method "+name+": Expected variable identifier, found"+id);
             args.add(((Identifier)id).name());
             Token punc = tok.peek();
             if (punc.getType() == TokenType.COMMA)
@@ -472,7 +505,7 @@ class Parser {
         while(tok.peek().getType() != TokenType.COLON) {
             Token id = tok.next();
             if(id.getType() != TokenType.IDENTIFIER)
-                throw new IllegalArgumentException("Expected variable identifier, found"+id);
+                throw new IllegalArgumentException("Error parsing local "+(locals.size()+1)+" of method "+name+": Expected variable identifier, found"+id);
             locals.add(((Identifier)id).name());
             Token punc = tok.peek();
             if (punc.getType() == TokenType.COMMA)
@@ -482,10 +515,17 @@ class Parser {
         }
         tok.next(); //throw away colon
         ArrayList<Statement> body = new ArrayList<>();
-        while(tok.peek().getType() != TokenType.RETURN) {
-            body.add(parseStmt());
+        while(tok.peek().getType() != TokenType.METHOD && tok.peek().getType() != TokenType.EOF && tok.peek().getType() != TokenType.RIGHT_BRACK) {
+            try {
+                body.add(parseStmt());
+                if(tok.peek().getType() == TokenType.RETURN) { //unconditional return
+                    body.add(parseStmt());
+                    break;
+                }
+            } catch(IllegalArgumentException e) {
+                throw new IllegalArgumentException("Error parsing statement "+(body.size()+1)+" of method "+name+": "+e.getMessage());
+            }
         }
-        body.add(parseStmt());
         return new Method(name, args, locals, body);
     }
 
@@ -514,7 +554,6 @@ class Parser {
         while(tok.peek().getType() != TokenType.EOF) {
             body.add(parseStmt());
         }
-        body.add(parseStmt());
         return new Method(name, null, locals, body);
     }
 
@@ -554,7 +593,7 @@ class Parser {
 
     public ParsedCode parse() { // parse EVERYTHING in the input as a series of Classes
         ArrayList<Class> classes = new ArrayList<>();
-        while (tok.peek().getType() != TokenType.METHOD) {
+        while (tok.peek().getType() != TokenType.MAIN) {
             classes.add(parseClass());
         }
         Method main = parseMain();
@@ -562,6 +601,36 @@ class Parser {
     }
 }
 
+enum CFGOpType {
+    CFG_UNASSN,
+    CFG_BIASSN,
+    CFG_CALLASSN,
+    CFG_PHIASSN,
+    CFG_ALLOCASSN,
+    CFG_PRINT,
+    CFG_GETELEM,
+    CFG_SETELEM,
+    CFG_LOADADDR,
+    CFG_STOREADDR
+}
+sealed interface CFGOp
+    permits CFGUnaryAssn {
+        public CFGOpType getType();
+}
+record CFGUnaryAssn(/*CFGVar var, CFGVal val*/) implements CFGOp { @Override public CFGOpType getType(){ return CFGOpType.CFG_UNASSN; } }
+
+
+class BasicBlock {
+    public static ArrayList<BasicBlock> controlFlowGraph;
+
+    public void makeCFG(ArrayList<Class> codeClasses) {
+        for(Class c : codeClasses) {
+            for(Method m : c.methods()) {
+                if(m.name().equals("main"));
+            }
+        }
+    }
+}
 
 
 
@@ -571,6 +640,7 @@ public class App {
             System.err.println("Usage: <comp> {tokenize|parseExpr} [args...]");
             System.exit(1);
         }
+
         // This is just some code to kick the tires on the tokenizer, your compiler has no need to do this
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i < args.length; i++) {
@@ -602,8 +672,16 @@ public class App {
                 System.out.println(p.parseClass());
                 break;
             case "parse":
+                String filePath = args[1];
+                try {
+                    tok = new Tokenizer(Files.readString(Path.of(filePath), StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    System.out.println("Failed to locate file with path "+filePath);
+                    System.exit(1);
+                }
                 p = new Parser(tok);
                 System.out.println(p.parse());
+                break;
             default:
                 System.err.println("Unsupported subcommand: "+args[0]);
         }
