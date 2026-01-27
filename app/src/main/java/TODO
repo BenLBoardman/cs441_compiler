@@ -1,12 +1,13 @@
 **TODO - AST processing**
 - process field read
-- process field write
+~~- process field write~~
 - process method call
 - process method args in header
-- while stmt
+~~- while stmt~~
 ~~- class instantiation~~
 ~~- binary expr~~
 - this
+- CFG
 
 **TODO - CFG Ops**
 ~~- fail~~
