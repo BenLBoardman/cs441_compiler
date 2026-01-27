@@ -1,1 +1,1 @@
-./gradlew builds
+./gradlew build
