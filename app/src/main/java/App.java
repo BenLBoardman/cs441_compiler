@@ -621,7 +621,17 @@ record CFGBinaryAssn(CFGVar res, CFGValue lhs, String op, CFGValue rhs) implemen
 record CFGGet(CFGVar out, CFGVar arr, CFGValue val) implements CFGOp { @Override public String toString() {return out + " = getelt(" + arr + ", " + val + ")"; } }
 record CFGSet(CFGVar addr, CFGData i, CFGData i2) implements CFGOp { @Override public String toString() {return "setelt("+addr+", "+i+", "+i2+")"; } }
 record CFGAlloc(CFGVar out, CFGPrimitive size) implements CFGOp { @Override public String toString() { return out + " = alloc("+size+")"; } }
-record CFGCall(CFGVar out, CFGVar addr, CFGVar receiver, ArrayList<CFGValue> args) implements CFGOp {} //todo tostring
+record CFGCall(CFGVar out, CFGVar addr, CFGVar receiver, CFGValue[] args) implements CFGOp {
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(out).append(" = call(");
+        sb.append(addr + ", " + receiver);
+        for(CFGValue a : args)
+            sb.append(", ").append(a);
+        return sb.append(')').toString();
+    }
+} 
 record CFGLoad(CFGVar out, CFGVar base) implements CFGOp { @Override public String toString() { return out + " = load(" + base + ")"; } }
 record CFGStore(CFGVar base, CFGData i) implements CFGOp { @Override public String toString() { return "store(" +base+", "+i+ ")"; } }
 
@@ -670,7 +680,6 @@ record CFGVar(String name, int version) implements CFGValue {
         return "%"+this.name+this.version;
     }
 }
-
 record CFGPrimitive(long value) implements CFGValue { @Override public String toString() {return ""+this.value; } }
 
 record CFGMethod(String name, CFGVar[] args, BasicBlock addr, ArrayList<BasicBlock> blocks) implements CFGElement {
@@ -719,7 +728,6 @@ record CFGClass(String name, CFGArray fields, CFGArray vtable, int numFields, Ar
         return sb.toString();
     }
 }
-
 
 class CtrlFlowGraph {
     public static ArrayList<BasicBlock> BasicBlocks;
@@ -826,6 +834,14 @@ class CtrlFlowGraph {
     public static int getFieldId(String fieldName) {
         for(int i = 0; i < CtrlFlowGraph.globals.size(); i++) {
             if(globals.get(i).equals(fieldName))
+                return i;
+        }
+        return -1;
+    }
+
+    public static int getMethodId(String methodName) {
+        for(int i = 0; i < CtrlFlowGraph.methods.size(); i++) {
+            if(methods.get(i).equals(methodName))
                 return i;
         }
         return -1;
@@ -1213,6 +1229,7 @@ class BasicBlock {
     //convert a potentially complex CFG expr into a series of statements
     public CFGValue exprToCFG(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, Expression expr, CFGVar tmp, ArrayList<String> locals, boolean requireVar) {
         ArrayList<BasicBlock> localPreds = new ArrayList<>();
+        BasicBlock badPtrBlock, badFieldBlock, badMethodBlock, getObjBlock;
         switch (expr) {
             case Constant c:
                 if(requireVar) {
@@ -1255,12 +1272,13 @@ class BasicBlock {
                 tmp = new CFGVar(tmp);
                 CFGVar objField = tmp;
                 CFGVar obj = (CFGVar)exprToCFG(blocksInMethod, blockBaseName, f.base(), tmp, locals, true);
-                ops.add(new CFGBinaryAssn(objField , obj, "&", new CFGPrimitive(1)));
+                getObjBlock = currBlock;
+                currBlock.addOp(new CFGBinaryAssn(objField , obj, "&", new CFGPrimitive(1)));
                 localPreds.add(this);
-                BasicBlock badPtrBlock = new BasicBlock(blocksInMethod, CFGFailOpt.NotAPointer, localPreds);
+                badPtrBlock = new BasicBlock(blocksInMethod, CFGFailOpt.NotAPointer, localPreds);
                 BasicBlock getFieldId = new BasicBlock(blocksInMethod, localPreds, actives);
                 getFieldId.setIdentifier(blockBaseName);
-                jmp = new CFGCondOp(objField, badPtrBlock, getFieldId);
+                getObjBlock.jmp = new CFGCondOp(objField, badPtrBlock, getFieldId);
                 tmp = new CFGVar(tmp);
                 CFGVar fieldAddr = tmp;
                 getFieldId.addOp(new CFGBinaryAssn(fieldAddr, obj, "+", new CFGPrimitive(8)));
@@ -1273,13 +1291,50 @@ class BasicBlock {
                 //check if field actually exists
                 localPreds.remove(this);
                 localPreds.add(getFieldId);
-                BasicBlock badField = new BasicBlock(blocksInMethod, CFGFailOpt.NoSuchField, localPreds);
+                badFieldBlock = new BasicBlock(blocksInMethod, CFGFailOpt.NoSuchField, localPreds);
                 BasicBlock getField = new BasicBlock(blocksInMethod, localPreds, actives);
-                getFieldId.addJump(new CFGCondOp(fieldOffset, getField, badField));
+                getFieldId.addJump(new CFGCondOp(fieldOffset, getField, badFieldBlock));
                 tmp = new CFGVar(tmp);
                 CFGVar field = tmp;
                 getField.addOp(new CFGGet(field, obj, fieldOffset));
                 return field;
+            case MethodCall m:
+                int methodId = CtrlFlowGraph.getMethodId(m.methodname());
+                if(methodId == -1)
+                    throw new IllegalArgumentException("Attempt to call nonexistent method"+m.methodname());
+                obj = (CFGVar)exprToCFG(blocksInMethod, blockBaseName, m.base(), tmp, locals, true);
+                tmp = new CFGVar(tmp);
+                CFGVar objPtr = tmp;
+                currBlock.addOp(new CFGBinaryAssn(objPtr, obj, "&", new CFGPrimitive(1)));
+                getObjBlock = currBlock;
+                localPreds.add(this);
+                badPtrBlock = new BasicBlock(blocksInMethod, CFGFailOpt.NotAPointer, localPreds);
+                BasicBlock getMethodId = new BasicBlock(blocksInMethod, localPreds, actives);
+                localPreds.clear();
+                getObjBlock.jmp = new CFGCondOp(objPtr, badPtrBlock, getMethodId);
+                getMethodId.setIdentifier(blockBaseName);
+                //load vtable, find method
+                tmp = new CFGVar(tmp);
+                CFGVar vtbl = tmp;
+                getMethodId.addOp(new CFGLoad(vtbl, obj));
+                tmp = new CFGVar(tmp);
+                CFGVar methodAddr = tmp;
+                getMethodId.addOp(new CFGGet(methodAddr, vtbl, new CFGPrimitive(methodId))); //get vtable id
+                localPreds.add(getMethodId);
+                badMethodBlock = new BasicBlock(blocksInMethod, CFGFailOpt.NoSuchMethod, localPreds);
+                BasicBlock callBlock = new BasicBlock(blocksInMethod, localPreds, actives);
+                getMethodId.jmp = new CFGCondOp(methodAddr, callBlock, badMethodBlock);
+                localPreds.clear();
+                tmp = new CFGVar(tmp);
+                CFGVar callRslt = tmp;
+                CFGValue[] args = new CFGValue[m.args().size()];
+                for(int i = 0; i < args.length; i++) {
+                    Expression e = m.args().get(i);
+                    args[i] = exprToCFG(blocksInMethod, blockBaseName, e, tmp, locals, false);
+                }
+
+                callBlock.addOp(new CFGCall(callRslt, methodAddr, obj, args)); //figure out receiver
+                return callRslt;
             case ThisExpr t:
                 return getActive("this");
             default:
