@@ -1,0 +1,71 @@
+data:
+global array vtblA: { mA }
+global array fieldsA: { 2, 0 }
+global array vtblB: { mB }
+global array fieldsB: { 0, 2 }
+code:
+
+mA(this):
+	%1 = %this & 1
+	if %1 then NotAPointer0 else mA1
+NotAPointer0:
+	fail NotAPointer
+mA1:
+	%2 = %this + 8
+	%3 = load(%2)
+	%4 = getelt(%3, 0)
+	if %4 then mA2 else NoSuchField0
+NoSuchField0:
+	fail NoSuchField
+mA2:
+	%5 = getelt(%this, %4)
+	ret 0
+
+mB(this):
+	ret 0
+
+main:
+	%x0 = alloc(3)
+	store(%x0, @vtblA)
+	%1 = %x0 + 8
+	store(%1, @fieldsA)
+	%2 = %x0 & 1
+	if %5 then NotAPointer1 else main1
+NotAPointer1:
+	fail NotAPointer
+main1:
+	%3 = %x0 + 8
+	%4 = load(%3)
+	%5 = getelt(%4, 0)
+	if %5 then main2 else NoSuchField1
+NoSuchField1:
+	fail NoSuchField
+main2:
+	setelt(%x0, %5, 3)
+	%6 = %x0 & 1
+	if %6 then NotAPointer2 else main3
+NotAPointer2:
+	fail NotAPointer
+main3:
+	%7 = load(%x0)
+	%8 = getelt(%7, 0)
+	if %8 then main5 else NoSuchMethod0
+NoSuchMethod0:
+	fail NoSuchMethod
+main5:
+	%9 = call(%8, %x0)
+	print(%9)
+	%6 = %x0 & 1
+	if %6 then NotAPointer3 else main6
+NotAPointer3:
+	fail NotAPointer
+main6:
+	%7 = load(%x0)
+	%8 = getelt(%7, 0)
+	if %8 then main7 else NoSuchMethod1
+NoSuchMethod1:
+	fail NoSuchMethod
+main7:
+	%9 = call(%8, %x0)
+	print(%9)
+	ret 0

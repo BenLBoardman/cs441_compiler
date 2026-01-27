@@ -1,10 +1,13 @@
+import java.io.File;
 import java.lang.StringBuilder;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 
 
@@ -1357,11 +1360,11 @@ class BasicBlock {
 public class App {
     public static void main(String[] args) {
         if (args.length < 2) {
-            System.err.println("Usage: <comp> {tokenize|parseExpr} [args...]");
+            System.err.println("Usage: <comp> infile outfile [args...]");
             System.exit(1);
         }
-        String filePath;
-
+        String inFilePath = args[0];
+        String outFilePath = args[1];
 
         // This is just some code to kick the tires on the tokenizer, your compiler has no need to do this
         StringBuilder sb = new StringBuilder();
@@ -1369,53 +1372,24 @@ public class App {
             sb.append(args[i]);
             sb.append(" "); // Without this, separate identifiers will run together
         }
-        Tokenizer tok = new Tokenizer(sb.toString());
-        Parser p;
-        switch (args[0]) {
-            case "tokenize":
-                while (tok.peek().getType() != TokenType.EOF) {
-                    System.out.println(tok.next());
-                }
-                break;
-            case "parseExpr":
-                p = new Parser(tok);
-                System.out.println(p.parseExpr());
-                break;
-            case "parseStmt":
-                p = new Parser(tok);
-                System.out.println(p.parseStmt());
-                break;
-            case "parseMethod":
-                p = new Parser(tok);
-                System.out.println(p.parseMethod());
-                break;
-            case "parseClass":
-                p = new Parser(tok);
-                System.out.println(p.parseClass());
-                break;
-            case "parse":
-                filePath = args[1];
-                try {
-                    tok = new Tokenizer(Files.readString(Path.of(filePath), StandardCharsets.UTF_8));
-                } catch (Exception e) {
-                    System.out.println("Failed to locate file with path "+filePath);
-                    System.exit(1);
-                }
-                p = new Parser(tok);
-                System.out.println(p.parse());
-                break;
-            case "mk-cfg":
-                filePath = args[1];
-                try {
-                    tok = new Tokenizer(Files.readString(Path.of(filePath), StandardCharsets.UTF_8));
-                } catch (Exception e) {
-                    System.out.println("Failed to locate file with path "+filePath);
-                    System.exit(1);
-                }
-                System.out.println(new CtrlFlowGraph(new Parser(tok).parse()));
-                break;
-            default:
-                System.err.println("Unsupported subcommand: "+args[0]);
+        
+        String code = "";
+        try {
+            code = Files.readString(Path.of(inFilePath), StandardCharsets.UTF_8);
+        } catch(Exception e) {
+            System.err.println("Failed to locate file "+inFilePath);
+            System.exit(1);
         }
+        Tokenizer tok = new Tokenizer(code);
+        Parser p = new Parser(tok);
+        
+        ParsedCode pc = p.parse();
+        CtrlFlowGraph cfg = new CtrlFlowGraph(pc);
+        try {
+            Files.write(Path.of(outFilePath), cfg.toString().getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE);
+        } catch(Exception e) {
+            System.err.println("Cannot write code to file "+outFilePath);
+        }
+
     }
 }
