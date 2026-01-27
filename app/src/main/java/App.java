@@ -225,7 +225,6 @@ class Tokenizer {
 //Expressions
 sealed interface Expression 
     permits Constant, Binop, MethodCall, FieldRead, ClassRef, ThisExpr, Variable {
-    // TODO: You'll need to provide your own methods for operations you care about
 }
 record ThisExpr() implements Expression {}
 record Constant(long value) implements Expression {}
@@ -261,8 +260,8 @@ record ReturnStmt(Expression output) implements Statement{ @Override public Stat
 record PrintStmt(Expression str) implements Statement{ @Override public StatementType getType(){ return StatementType.PRINT; } }
 
 //Method & Class
-record Method(String name, ArrayList<String> args, ArrayList<String> locals, ArrayList<Statement> body){}
-record Class(String name, ArrayList<String> fields, ArrayList<Method> methods){}
+record Method(String name, ArrayList<String> args, ArrayList<String> locals, ArrayList<Statement> body){ @Override public boolean equals(Object o) {return this.name.equals(((Method)o).name());} }
+record Class(String name, ArrayList<String> fields, ArrayList<Method> methods){ @Override public boolean equals(Object o) { return this.name.equals(((String)o)); } }
 
 class ParsedCode {
     public final Method main;
@@ -601,34 +600,506 @@ class Parser {
     }
 }
 
-enum CFGOpType {
-    CFG_UNASSN,
-    CFG_BIASSN,
-    CFG_CALLASSN,
-    CFG_PHIASSN,
-    CFG_ALLOCASSN,
-    CFG_PRINT,
-    CFG_GETELEM,
-    CFG_SETELEM,
-    CFG_LOADADDR,
-    CFG_STOREADDR
+sealed interface CFGElement 
+    permits CFGOp, CFGJumpOp, CFGMethod, CFGData {}
+
+sealed interface CFGData extends CFGElement
+    permits CFGValue, CFGArray {}
+
+sealed interface CFGValue extends CFGData
+    permits CFGVar, CFGPrimitive {}
+
+sealed interface CFGOp extends CFGElement
+    permits CFGPhi, CFGUnaryAssn, CFGBinaryAssn, CFGPrint, CFGSet, CFGStore, CFGGet, CFGAlloc, CFGCall, CFGLoad {
+        //public CFGOpType getType();
 }
-sealed interface CFGOp
-    permits CFGUnaryAssn {
-        public CFGOpType getType();
+
+record CFGPrint(CFGValue val) implements CFGOp { @Override public String toString() { return "print("+val+")"; } }
+record CFGUnaryAssn(CFGVar var, CFGValue val) implements CFGOp { @Override public String toString() { return var + " = " + val; } }
+record CFGBinaryAssn(CFGVar res, CFGValue lhs, String op, CFGValue rhs) implements CFGOp {@Override public String toString() { return res + " = " + lhs + " " + op + " " + rhs; } }
+record CFGGet(CFGVar out, CFGVar arr, CFGValue val) implements CFGOp { @Override public String toString() {return out + " = getelt(" + arr + ", " + val + ")"; } }
+record CFGSet(CFGVar addr, CFGData i, CFGData i2) implements CFGOp { @Override public String toString() {return "setelt("+addr+", "+i+", "+i2+")"; } }
+record CFGAlloc(CFGVar out, CFGPrimitive size) implements CFGOp { @Override public String toString() { return out + " = alloc("+size+")"; } }
+record CFGCall(CFGVar out, CFGVar addr, CFGVar receiver, ArrayList<CFGValue> args) implements CFGOp {} //todo tostring
+record CFGLoad(CFGVar out, CFGVar base) implements CFGOp { @Override public String toString() { return out + " = load(" + base + ")"; } }
+record CFGStore(CFGVar base, CFGData i) implements CFGOp { @Override public String toString() { return "store(" +base+", "+i+ ")"; } }
+
+sealed interface CFGJumpOp extends CFGElement
+    permits CFGAutoJumpOp, CFGRetOp, CFGCondOp, CFGFail {
+
 }
-record CFGUnaryAssn(/*CFGVar var, CFGVal val*/) implements CFGOp { @Override public CFGOpType getType(){ return CFGOpType.CFG_UNASSN; } }
+record CFGAutoJumpOp(BasicBlock target) implements CFGJumpOp { @Override public String toString() { return "jump " + target.getIdentifier(); } }
+record CFGRetOp(CFGValue val) implements CFGJumpOp { @Override public String toString() { return "ret " + val; } }
+record CFGCondOp(CFGValue test, BasicBlock yes, BasicBlock no) implements CFGJumpOp { @Override public String toString() { return "if "+test+" then "+yes.getIdentifier()+" else "+no.getIdentifier(); } }
+record CFGFail(CFGFailOpt fail) implements CFGJumpOp { @Override public String toString() {return "fail "+fail.name(); } }
+enum CFGFailOpt {
+    NotANumber,
+    NotAPointer,
+    NoSuchField,
+    NoSuchMethod
+}
 
 
-class BasicBlock {
-    public static ArrayList<BasicBlock> controlFlowGraph;
+record CFGVar(String name, int version) implements CFGValue {
+    public CFGVar(CFGVar prev) {
+        this(prev.name, prev.version + 1);
+    }
 
-    public void makeCFG(ArrayList<Class> codeClasses) {
-        for(Class c : codeClasses) {
+    public CFGVar(String name) {
+        this(name, 0);
+    }
+
+    @Override
+    public final String toString() {
+        return "%"+this.name+this.version;
+    }
+}
+record CFGPrimitive(long value) implements CFGValue { @Override public String toString() {return ""+this.value; } }
+record CFGMethod(String name, CFGVar[] args, BasicBlock addr) implements CFGElement {}
+record CFGArray(String name, Object[] elems) implements CFGData { int size()  {return this.elems.length; } @Override public String toString() { return "@"+name;} }
+
+record CFGPhi(CFGVar out, ArrayList<BasicBlock> blocks, ArrayList<CFGVar> varVersions) implements CFGOp {
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(out).append(" = phi(");
+        for(int i = 0; i < blocks.size(); i++) {
+            sb.append(blocks.get(i).getIdentifier()).append(", ");
+            sb.append(varVersions.get(i)).append((i < blocks.size() - 1) ? ", " : "");
+        }
+        return sb.append(")").toString();
+    }
+}
+
+record CFGClass(String name, CFGArray fields, CFGArray vtable, int numFields) { }
+
+
+
+class CtrlFlowGraph {
+    public static ArrayList<BasicBlock> CFGCodeBlock;
+    public static DataBlock CFGDataBlock;
+    public static ArrayList<String> globals;
+    public static ArrayList<String> methods;
+    public static ArrayList<CFGClass> classes;
+    public static ParsedCode parsedCode;
+
+    public CtrlFlowGraph (ParsedCode code) {
+        classes = new ArrayList<>();
+        parsedCode = code;
+        CFGDataBlock = new DataBlock(new ArrayList<>());
+        //setup fields and vtables
+        CFGArray vtable;
+        CFGArray fields;
+        globals = new ArrayList<>();
+        methods = new ArrayList<>();
+        ArrayList<String> uniqueFields = new ArrayList<>();
+        ArrayList<Method> uniqueMethods = new ArrayList<>();
+        for(Class c : code.classes) { // find all unique field & method names
+            for(String f : c.fields()) {
+                if(!uniqueFields.contains(f)) {
+                    uniqueFields.add(f);
+                    globals.add(f);
+                }
+            }
             for(Method m : c.methods()) {
-                if(m.name().equals("main"));
+                if(!uniqueMethods.contains(m)) 
+                    uniqueMethods.add(m);
+                    methods.add(m.name());
+            }
+            
+        }
+        
+        for(Class c : code.classes) { // build fields and vtables
+            vtable = new CFGArray("vtbl"+c.name(), new String[uniqueMethods.size()]);
+            for(int i = 0; i < uniqueMethods.size(); i++) {
+                if(c.methods().contains(uniqueMethods.get(i))) {
+                    vtable.elems()[i] = uniqueMethods.get(i).name() + c.name();
+                }
+                else {
+                    vtable.elems()[i] = "0";
+                }
+            }
+
+            fields = new CFGArray("fields"+c.name(), new Integer[uniqueFields.size()]);
+            for(int i = 0; i < uniqueFields.size(); i++) {
+                if(c.fields().contains(uniqueFields.get(i))) {
+                    fields.elems()[i] = 2;
+                }
+                else {
+                    fields.elems()[i] = 0;
+                }
+                
+            }
+            CFGDataBlock.data().add(vtable);
+            CFGDataBlock.data().add(fields);
+            classes.add(new CFGClass(c.name(), fields, vtable, c.fields().size()));
+        }
+
+        CFGCodeBlock = new ArrayList<>();
+        for(Class c : code.classes) {
+            for(Method m : c.methods()) {
+                methodToCfg(m);
             }
         }
+
+        methodToCfg(code.main);
+
+        //then process main method by recursively parsing called methods
+    }
+
+    public static CFGClass findClass(String s) {
+        for(CFGClass c : classes) {
+            if(c.name().equals(s))
+                return c;
+        }
+        return null;
+    }
+    
+    private void methodToCfg(Method m) {
+        CFGVar tmp = new CFGVar("");
+        ArrayList<CFGVar> activeVars = new ArrayList<>();
+        if(m.args() != null) {
+            for (String s : m.args()) {
+                activeVars.add(new CFGVar(s));
+            }
+        }
+        BasicBlock.blockId = 0;
+        new BasicBlock(m.name(), m.body(), 0, activeVars, new ArrayList<>(), tmp, m.locals(), null);
+
+    }
+
+
+    public static CFGVar getActive(ArrayList<CFGVar> actives, String varName) {
+        for(CFGVar v : actives) {
+            if(v.name().equals(varName)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(CFGDataBlock);
+        sb.append("code:\n\n");
+        for(BasicBlock b : CFGCodeBlock) {
+            sb.append(b).append('\n');
+        }
+        return sb.toString();
+    }
+
+    
+    
+}
+
+record DataBlock(ArrayList<CFGArray> data){
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("data:\n");
+        for(CFGArray arr : data) {
+            sb.append("global array "+arr.name()+": { ");
+            for(int i = 0; i < arr.size(); i++) {
+                sb.append(arr.elems()[i].toString());
+                if(i != arr.size() - 1) {
+                    sb.append(",");
+                }
+                sb.append(" ");
+            }
+            sb.append("}\n");
+
+        }
+
+
+        return sb.toString();
+    }
+
+}
+
+//identifier: name of the basic block
+//actives: list of most recent variable versions active in the block
+//ops: non-jumping operations, in order
+//jump: jump, return, or conditional that ends the block
+class BasicBlock {
+    public static int blockId = 0;
+
+    private String identifier;
+    private ArrayList<CFGVar> actives;
+    private ArrayList<CFGOp> ops;
+    private CFGJumpOp jmp;
+    private ArrayList<BasicBlock> preds;
+    private ArrayList<BasicBlock> succs;
+
+    public BasicBlock(String blockBaseName, ArrayList <Statement> stmts, int startIndex, ArrayList<CFGVar> activesIn, 
+        ArrayList<BasicBlock> preds, CFGVar tmp, ArrayList<String> locals, BasicBlock jmpBack) {
+            this();
+            this.setupBlock(blockBaseName, stmts, startIndex, activesIn, preds, tmp, locals, jmpBack);
+        }
+    
+    public BasicBlock() { //placeholder constructor to just initialize arraylists
+        CtrlFlowGraph.CFGCodeBlock.add(this);
+        preds = new ArrayList<>();
+        succs = new ArrayList<>();
+        actives = new ArrayList<>();
+        ops = new ArrayList<>();
+        return;
+    }
+
+
+    private void setupBlock(String blockBaseName, ArrayList <Statement> stmts, int startIndex, ArrayList<CFGVar> activesIn, 
+        ArrayList<BasicBlock> preds, CFGVar tmp, ArrayList<String> locals, BasicBlock jmpBack) {
+        this.identifier = blockBaseName + (blockId > 0 ? blockId : "");
+        this.preds.addAll(preds);
+        blockId++;
+        if(preds.size() == 0) //if this is the starting pt of the method
+            this.actives.addAll(activesIn);
+        else
+            this.actives.addAll(preds.get(0).getActives());
+        //make phis
+        /*if(this.preds.size() >= 2) {
+            ArrayList<BasicBlock> phiBlocks;
+            ArrayList<CFGVar> phiVars;
+            CFGVar latest;
+            for(int i = 0; i < this.preds.get(0).actives.size(); i++) {
+                phiBlocks = new ArrayList<>();
+                phiVars = new ArrayList<>();
+                CFGVar curr = this.preds.get(0).actives.get(i);
+                phiBlocks.add(this.preds.get(0));
+                phiVars.add(curr);
+                latest = curr;
+                for(int j = 1; j < this.preds.size(); j++) {
+                    BasicBlock p = this.preds.get(j);
+                    CFGVar pVer = p.getActive(curr.name());
+                    if(pVer == null)
+                        throw new UnsupportedOperationException("Error: variable "+curr.name()+" may not be initialized before first use");
+                    phiBlocks.add(p);
+                    phiVars.add(pVer);
+                    latest = latest.version() < pVer.version() ? pVer : latest;
+                }
+                CFGVar varOut = new CFGVar(latest);
+                ops.add(new CFGPhi(varOut, phiBlocks, phiVars));
+            }
+        }*/
+        for(BasicBlock p : this.preds) {
+            p.addSucc(this);
+        }
+        BasicBlock afterIf, ifBlk;
+        CFGVar cond;
+        for(int i = startIndex; i < stmts.size(); i++) {
+            Statement s = stmts.get(i);
+            switch (s) {
+                case AssignStmt a:
+                    CFGVar assignment;
+                    String name = a.var().name();
+                    CFGVar base = getActive(name);
+                    if(base != null) {
+                        assignment = base; //variable has already been initialized, we need a new version
+                    } else if (locals.contains(name)) {
+                        assignment = new CFGVar(name); //variable is a local that has not been initalized yet, we need to initialize it
+                    } else
+                        throw new IllegalArgumentException("Post-Parse error: Cannot initialize variable "+name+" as it was neither passed as an argument nor declared as a local.");
+                    switch (a.rhs()) {
+                        case Binop b:
+                            CFGValue lhs = exprToCFG(b.lhs(), ops, actives, tmp, locals, false);
+                            CFGValue rhs = exprToCFG(b.rhs(), ops, actives, tmp, locals, false);
+                            ops.add(new CFGBinaryAssn(assignment, lhs, b.op(), rhs));
+                            break;
+                        case ThisExpr t:
+                            throw new IllegalArgumentException("Error: Cannot assign 'this' to a variable value");
+                        case ClassRef c:
+                            CFGClass classData = CtrlFlowGraph.findClass(c.classname());
+                            if (classData == null)
+                                throw new IllegalArgumentException("Class " + c.classname() + " is undefined");
+                            ops.add(new CFGAlloc(assignment, new CFGPrimitive(classData.numFields() + 2))); // alloc vtable, field map, fields
+                            ops.add(new CFGStore(assignment, classData.vtable()));
+                            tmp = new CFGVar(tmp);
+                            ops.add(new CFGBinaryAssn(tmp, assignment, "&", new CFGPrimitive(1)));
+                            ops.add(new CFGStore(tmp, classData.fields()));
+                            break;
+                        default:
+                            ops.add(new CFGUnaryAssn(assignment,
+                                    exprToCFG(a.rhs(), ops, activesIn, tmp, locals, false)));
+                    }
+                    this.actives.remove(base);
+                    this.actives.add(assignment); //add var to the list of active names we allow
+                    break;
+                case IfElseStmt ie:
+                    cond = (CFGVar)exprToCFG(ie.cond(), ops, activesIn, tmp, locals, true);
+                    preds = new ArrayList<>();
+                    preds.add(this);
+                    afterIf = new BasicBlock();
+                    ifBlk = new BasicBlock(blockBaseName, ie.body(), 0, activesIn, preds, tmp, locals, afterIf);  
+                    BasicBlock elseBlk = new BasicBlock(blockBaseName, ie.elseBody(), 0, activesIn, preds, tmp, locals, afterIf);
+                    preds.remove(this);
+                    preds.add(ifBlk);
+                    preds.add(elseBlk);
+                    afterIf.setupBlock(blockBaseName, stmts, i + 1, activesIn, preds, tmp, locals, jmpBack);
+                    jmp = new CFGCondOp(cond, ifBlk, elseBlk);
+                    return;
+                case IfOnlyStmt io:
+                    cond = (CFGVar)exprToCFG(io.cond(), ops, activesIn, tmp, locals, true);
+                    preds = new ArrayList<>();
+                    preds.add(this);
+                    afterIf = new BasicBlock();
+                    ifBlk = new BasicBlock(blockBaseName, io.body(), 0, activesIn, preds, tmp, locals, afterIf);
+                    preds.add(ifBlk);
+                    afterIf.setupBlock(blockBaseName, stmts, i+1, activesIn, preds, tmp, locals, jmpBack);
+                    jmp = new CFGCondOp(cond, ifBlk, afterIf);
+                    return;
+                case WhileStmt w:
+                    cond = (CFGVar)exprToCFG(w.cond(), ops, actives, tmp, locals, true);
+                    BasicBlock loophead = new BasicBlock();
+                    preds.add(loophead);
+                    loophead.addActives(actives);
+                    BasicBlock body = new BasicBlock(blockBaseName, w.body(), 0, actives, preds, tmp, locals, loophead);
+                    BasicBlock end = new BasicBlock(blockBaseName, w.body(), i + 1, actives, preds, tmp, locals, jmpBack);
+                    preds.remove(loophead);
+                    
+                    preds.add(this);
+                    preds.add(body);
+                    loophead.setupBlock(blockBaseName, new ArrayList<>(), 0, actives, preds, tmp, locals, null); //set up block with null body to build phi
+                    cond = loophead.getActive(cond.name());
+                    loophead.addJump(new CFGCondOp(cond, body, end)); //add jump at end
+                    jmp = new CFGAutoJumpOp(loophead);  
+                        return;
+                case PrintStmt p:
+                    CFGValue prt = exprToCFG(p.str(), ops, activesIn, tmp, locals, false);
+                    ops.add(new CFGPrint(prt));
+                    break;
+                case FieldWriteStmt f:
+                    break;
+                case ReturnStmt r:
+                    jmp = new CFGRetOp(exprToCFG(r.output(), ops, activesIn, tmp, locals, false));
+                    return;
+                case VoidStmt v:
+                    CFGValue voidRslt = exprToCFG(v.rhs(), ops, activesIn, tmp, locals, false);
+                    ops.add(new CFGUnaryAssn(new CFGVar(tmp), voidRslt));
+                    break;
+                    default:
+                    break;
+            }
+        }
+        if(jmpBack == null)
+            jmp = new CFGRetOp(new CFGPrimitive(0));
+        else
+            jmp = new CFGAutoJumpOp(jmpBack);
+        return;
+    }
+
+
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(identifier + ":\n");
+        for(CFGOp op : ops) {
+            sb.append("\t" + op + "\n");
+        }
+        sb.append("\t" + jmp);
+        return sb.toString();
+    }
+
+    public ArrayList<CFGVar> getActives() {
+        return actives;
+    }
+
+    public void addSucc(BasicBlock b) {
+        succs.add(b);
+    }
+
+    //overwrite existing actives and replace it with v - intended to be use to temporarily pre-initialize in cases where loops are being turned into CFG
+    public void addActives(ArrayList<CFGVar> v) {
+        actives = v;
+    }
+
+    //update usages (not assignments) of a variable to a new version
+    private void updateUses(CFGVar v) {
+        for(int i = 0; i < ops.size(); i++) {
+            CFGOp o = ops.get(i);
+            switch (o) {
+                case CFGUnaryAssn u:
+                    if(v.equals((CFGVar)u.val())) {
+                        ops.add(i, new CFGUnaryAssn(u.var(), v));
+                        ops.remove(o);
+                    }
+                    break;
+                case CFGBinaryAssn b:
+                    if(v.equals((CFGVar)b.lhs())) {
+                        CFGBinaryAssn b1 = new CFGBinaryAssn(b.res(), v, b.op(), b.rhs());
+                        ops.add(i, b1);
+                        ops.remove(b);
+                        b = b1;
+                    }
+                    if(v.equals((CFGVar)b.rhs())) {
+                        CFGBinaryAssn b1 = new CFGBinaryAssn(b.res(), b.lhs(), b.op(), v);
+                        ops.add(i, b1 );
+                        ops.remove(b);
+                        b = b1;
+                    }
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void addOp(CFGOp c) {
+        ops.add(c);
+    }
+    
+    private void addJump(CFGJumpOp j) {
+        jmp = j;
+    }
+
+    public String getIdentifier() {
+        return identifier;
+    }
+
+    //convert a potentially complex CFG expr into a series of statements
+    public CFGValue exprToCFG(Expression expr, ArrayList<CFGOp> ops, ArrayList<CFGVar> actives, CFGVar tmp, ArrayList<String> locals, boolean requireVar) {
+        switch (expr) {
+            case Constant c:
+                if(requireVar) {
+                    actives.remove(tmp);
+                    tmp = new CFGVar(tmp);
+                    actives.add(tmp);
+                    ops.add(new CFGUnaryAssn(tmp, new CFGPrimitive(c.value())));
+                    return tmp;
+                }
+                return new CFGPrimitive(c.value());
+            case Variable v:
+                CFGVar tmpVar = getActive(v.name());
+                if(tmpVar == null)
+                    throw new IllegalArgumentException("Attempted to access nonexistent or uninitialized variable "+v.name());
+                return tmpVar;
+            case Binop b:
+                actives.remove(tmp);
+                tmp = new CFGVar(tmp);
+                actives.add(tmp);
+                CFGValue lhs = exprToCFG(b.lhs(), ops, actives, tmp, locals, false); 
+                CFGValue rhs = exprToCFG(b.rhs(), ops, actives, tmp, locals, false);
+                ops.add(new CFGBinaryAssn(tmp, lhs, b.op(), rhs));
+                return tmp;
+            case ClassRef c: //used for class reference in a complex expression, so we need to return an anonymous(temp) value
+                CFGClass classData = CtrlFlowGraph.findClass(c.classname());
+                if(classData == null)
+                    throw new IllegalArgumentException("Class "+c.classname()+" is undefined");
+                tmp = new CFGVar(tmp);
+                CFGVar cRef = tmp;
+                actives.add(tmp);
+                ops.add(new CFGAlloc(tmp, new CFGPrimitive(classData.numFields()+2))); //alloc vtable, field map, fields
+                ops.add(new CFGStore(tmp, classData.vtable()));
+                tmp = new CFGVar(tmp);
+                ops.add(new CFGBinaryAssn(tmp, cRef, "&", new CFGPrimitive(8)));
+                ops.add(new CFGStore(tmp, classData.fields()));
+                return cRef;
+            default:
+                return null;
+        }
+    }
+
+    public CFGVar getActive(String varName) {
+        for(CFGVar v : actives) {
+            if(v.name().equals(varName)) {
+                return v;
+            }
+        }
+        return null;
     }
 }
 
@@ -640,6 +1111,8 @@ public class App {
             System.err.println("Usage: <comp> {tokenize|parseExpr} [args...]");
             System.exit(1);
         }
+        String filePath;
+
 
         // This is just some code to kick the tires on the tokenizer, your compiler has no need to do this
         StringBuilder sb = new StringBuilder();
@@ -672,7 +1145,7 @@ public class App {
                 System.out.println(p.parseClass());
                 break;
             case "parse":
-                String filePath = args[1];
+                filePath = args[1];
                 try {
                     tok = new Tokenizer(Files.readString(Path.of(filePath), StandardCharsets.UTF_8));
                 } catch (Exception e) {
@@ -681,6 +1154,16 @@ public class App {
                 }
                 p = new Parser(tok);
                 System.out.println(p.parse());
+                break;
+            case "mk-cfg":
+                filePath = args[1];
+                try {
+                    tok = new Tokenizer(Files.readString(Path.of(filePath), StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    System.out.println("Failed to locate file with path "+filePath);
+                    System.exit(1);
+                }
+                System.out.println(new CtrlFlowGraph(new Parser(tok).parse()));
                 break;
             default:
                 System.err.println("Unsupported subcommand: "+args[0]);

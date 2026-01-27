@@ -37,6 +37,12 @@ application {
     mainClass = "App"
 }
 
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "App"
+    }
+}
+
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
