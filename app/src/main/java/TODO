@@ -1,15 +1,15 @@
 **TODO - AST processing**
-- process field read
+~~- process field read~~
 ~~- process field write~~
 - process method call
-- process method args in header
+~~- process method args in header~~
 ~~- while stmt~~
 ~~- class instantiation~~
 ~~- binary expr~~
-- this
-- CFG
+~~- this~~
+- tag check arithmetic
 
-**TODO - CFG Ops**
+**TODO - CFG Op Representations**
 ~~- fail~~
 - call
 ~~- binary assn~~
@@ -19,3 +19,7 @@
 ~~- setelt~~
 ~~- load~~
 ~~- store~~
+
+**TODO - Optimizations & Transformations**
+- SSA-ify
+- Peephole
