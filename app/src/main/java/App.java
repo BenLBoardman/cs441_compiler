@@ -1359,12 +1359,14 @@ class BasicBlock {
 
 public class App {
     public static void main(String[] args) {
-        if (args.length < 2) {
-            System.err.println("Usage: <comp> infile outfile [args...]");
+        if (args.length < 1) {
+            System.err.println("Usage: <comp> infile [-o outfile] [args...]");
             System.exit(1);
         }
         String inFilePath = args[0];
-        String outFilePath = args[1];
+        String outFilePath = "";
+        if(args.length >= 3 && args[1].equals("-o"))
+            outFilePath = args[1];
 
         // This is just some code to kick the tires on the tokenizer, your compiler has no need to do this
         StringBuilder sb = new StringBuilder();
@@ -1385,6 +1387,10 @@ public class App {
         
         ParsedCode pc = p.parse();
         CtrlFlowGraph cfg = new CtrlFlowGraph(pc);
+        if(outFilePath == "") {
+            System.out.println(cfg);
+            return;
+        }
         try {
             Files.write(Path.of(outFilePath), cfg.toString().getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE);
         } catch(Exception e) {
