@@ -19,7 +19,7 @@ NoSuchField0:
 	fail NoSuchField
 mA2:
 	%5 = getelt(%this, %4)
-	ret 0
+	ret %5
 
 mB(this):
 	ret 0
@@ -30,7 +30,7 @@ main:
 	%1 = %x0 + 8
 	store(%1, @fieldsA)
 	%2 = %x0 & 1
-	if %5 then NotAPointer1 else main1
+	if %2 then NotAPointer1 else main1
 NotAPointer1:
 	fail NotAPointer
 main1:
@@ -49,23 +49,10 @@ NotAPointer2:
 main3:
 	%7 = load(%x0)
 	%8 = getelt(%7, 0)
-	if %8 then main5 else NoSuchMethod0
+	if %8 then main4 else NoSuchMethod0
 NoSuchMethod0:
 	fail NoSuchMethod
-main5:
-	%9 = call(%8, %x0)
-	print(%9)
-	%6 = %x0 & 1
-	if %6 then NotAPointer3 else main6
-NotAPointer3:
-	fail NotAPointer
-main6:
-	%7 = load(%x0)
-	%8 = getelt(%7, 0)
-	if %8 then main7 else NoSuchMethod1
-NoSuchMethod1:
-	fail NoSuchMethod
-main7:
+main4:
 	%9 = call(%8, %x0)
 	print(%9)
 	ret 0

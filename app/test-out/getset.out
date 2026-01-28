@@ -1,0 +1,144 @@
+data:
+global array vtblfoo: { doStufffoo, 0 }
+global array fieldsfoo: { 2, 3, 0 }
+global array vtblbar: { 0, doNilbar }
+global array fieldsbar: { 0, 0, 2 }
+code:
+
+doStufffoo(%this, %x0):
+	%1 = %this & 1
+	if %1 then NotAPointer0 else doStufffoo1
+NotAPointer0:
+	fail NotAPointer
+doStufffoo1:
+	%2 = %this + 8
+	%3 = load(%2)
+	%4 = getelt(%3, 0)
+	if %4 then doStufffoo2 else NoSuchField0
+NoSuchField0:
+	fail NoSuchField
+doStufffoo2:
+	setelt(%this, %4, 1)
+	%5 = %this & 1
+	if %5 then NotAPointer1 else doStufffoo3
+NotAPointer1:
+	fail NotAPointer
+doStufffoo3:
+	%6 = %this + 8
+	%7 = load(%6)
+	%8 = getelt(%7, 0)
+	if %8 then doStufffoo4 else NoSuchField1
+NoSuchField1:
+	fail NoSuchField
+doStufffoo4:
+	%9 = getelt(%this, %8)
+	print(%9)
+	%10 = %this & 1
+	if %10 then NotAPointer2 else doStufffoo5
+NotAPointer2:
+	fail NotAPointer
+doStufffoo5:
+	%11 = %this + 8
+	%12 = load(%11)
+	%13 = getelt(%12, 1)
+	if %13 then doStufffoo6 else NoSuchField2
+NoSuchField2:
+	fail NoSuchField
+doStufffoo6:
+	%14 = getelt(%this, %13)
+	print(%14)
+	%15 = %x0 & 1
+	if %15 then NotAPointer3 else doStufffoo7
+NotAPointer3:
+	fail NotAPointer
+doStufffoo7:
+	%16 = %x0 + 8
+	%17 = load(%16)
+	%18 = getelt(%17, 2)
+	if %18 then doStufffoo8 else NoSuchField3
+NoSuchField3:
+	fail NoSuchField
+doStufffoo8:
+	%19 = getelt(%x0, %18)
+	%20 = %this & 1
+	if %20 then NotAPointer4 else doStufffoo9
+NotAPointer4:
+	fail NotAPointer
+doStufffoo9:
+	%21 = %this + 8
+	%22 = load(%21)
+	%23 = getelt(%22, 1)
+	if %23 then doStufffoo10 else NoSuchField4
+NoSuchField4:
+	fail NoSuchField
+doStufffoo10:
+	setelt(%this, %23, %19)
+	%24 = %this & 1
+	if %24 then NotAPointer5 else doStufffoo11
+NotAPointer5:
+	fail NotAPointer
+doStufffoo11:
+	%25 = %this + 8
+	%26 = load(%25)
+	%27 = getelt(%26, 0)
+	if %27 then doStufffoo12 else NoSuchField5
+NoSuchField5:
+	fail NoSuchField
+doStufffoo12:
+	%28 = getelt(%this, %27)
+	print(%28)
+	%29 = %this & 1
+	if %29 then NotAPointer6 else doStufffoo13
+NotAPointer6:
+	fail NotAPointer
+doStufffoo13:
+	%30 = %this + 8
+	%31 = load(%30)
+	%32 = getelt(%31, 1)
+	if %32 then doStufffoo14 else NoSuchField6
+NoSuchField6:
+	fail NoSuchField
+doStufffoo14:
+	%33 = getelt(%this, %32)
+	print(%33)
+	ret 0
+
+doNilbar(%this):
+	ret 0
+
+main:
+	%bob0 = alloc(3)
+	store(%bob0, @vtblbar)
+	%1 = %bob0 + 8
+	store(%1, @fieldsbar)
+	%2 = %bob0 & 1
+	if %2 then NotAPointer7 else main1
+NotAPointer7:
+	fail NotAPointer
+main1:
+	%3 = %bob0 + 8
+	%4 = load(%3)
+	%5 = getelt(%4, 2)
+	if %5 then main2 else NoSuchField7
+NoSuchField7:
+	fail NoSuchField
+main2:
+	setelt(%bob0, %5, 3)
+	%joe0 = alloc(4)
+	store(%joe0, @vtblfoo)
+	%6 = %joe0 + 8
+	store(%6, @fieldsfoo)
+	%7 = %joe0 & 1
+	if %7 then NotAPointer8 else main3
+NotAPointer8:
+	fail NotAPointer
+main3:
+	%8 = load(%joe0)
+	%9 = getelt(%8, 0)
+	if %9 then main4 else NoSuchMethod0
+NoSuchMethod0:
+	fail NoSuchMethod
+main4:
+	%10 = call(%9, %joe0, %bob0)
+	%11 = %10
+	ret 0

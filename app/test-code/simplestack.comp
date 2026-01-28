@@ -9,21 +9,22 @@ class Stack [
     fields list
     method push(v) with locals tmp:
         tmp = @ListNode
-	!tmp.val = v
-	!tmp.next = &this.list
-	!this.list = tmp
-	return 0
+	    !tmp.val = v
+	    !tmp.next = &this.list
+	    !this.list = tmp
+	    return 0
+    
     method pop() with locals tmp:
         if (&this.list == 0): {
             return 0
         } else {
-            tmp = ^this.getVal()
-            !this.list = ^this.getNext()
+            tmp = ^&this.list.getVal()
+            !this.list = ^&this.list.getNext()
             return tmp
         }
 ]
 
-main with stk:
+main with stk, tmp:
     stk = @Stack
     !stk.list = 0
     _ = ^stk.push(1)
