@@ -5,61 +5,61 @@ code:
 
 moreifsFoo(%this):
 	%0 = 6 << 1
-	%a0 = %0 + 1
+	%a = %0 + 1
 	%1 = 3 << 1
-	%b0 = %1 + 1
-	%2 = %a0 & 1
+	%b = %1 + 1
+	%2 = %a & 1
 	if %2 then moreifsFoo1 else NotANumber0
 NotANumber0:
 	fail NotANumber
 moreifsFoo1:
-	%3 = %a0 - 1
+	%3 = %a - 1
 	%4 = %3 >> 1
 	if %4 then moreifsFoo2 else moreifsFoo4
 moreifsFoo2:
-	%5 = %a0 & 1
+	%5 = %a & 1
 	if %5 then moreifsFoo3 else NotANumber1
 moreifsFoo4:
-	%8 = %b0 & 1
+	%8 = %b & 1
 	if %8 then moreifsFoo5 else NotANumber2
 moreifsFoo6:
 	ret 3
 NotANumber1:
 	fail NotANumber
 moreifsFoo3:
-	%6 = %a0 - 1
+	%6 = %a - 1
 	%7 = %6 >> 1
 	print(%7)
 	jump moreifsFoo6
 NotANumber2:
 	fail NotANumber
 moreifsFoo5:
-	%9 = %b0 - 1
+	%9 = %b - 1
 	%10 = %9 >> 1
 	print(%10)
 	jump moreifsFoo6
 
 main:
 	%0 = 5 << 1
-	%a0 = %0 + 1
-	%1 = %a0 & 1
+	%a = %0 + 1
+	%1 = %a & 1
 	if %1 then main1 else NotANumber3
 NotANumber3:
 	fail NotANumber
 main1:
-	%2 = %a0 - 1
+	%2 = %a - 1
 	%3 = %2 >> 1
 	if %3 then main2 else main4
 main2:
-	%4 = %a0 & 1
+	%4 = %a & 1
 	if %4 then main3 else NotANumber4
 main4:
 	print(0)
-	ret 0
+	ret %a
 NotANumber4:
 	fail NotANumber
 main3:
-	%5 = %a0 - 1
+	%5 = %a - 1
 	%6 = %5 >> 1
 	print(%6)
 	jump main4

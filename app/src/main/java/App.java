@@ -1289,6 +1289,8 @@ class BasicBlock {
                     break;
                 case IfElseStmt ie:
                     cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, ie.cond(), locals, true, loopheadBlock);
+                    if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
+                        cond = untagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds, loopheadBlock);
                     localPreds.add(currBlock);
                     branchEntryBlock = currBlock;
                     ifBlk = new BasicBlock(blocksInMethod, null, loopheadBlock);
@@ -1314,6 +1316,8 @@ class BasicBlock {
                     return;
                 case IfOnlyStmt io:
                     cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, io.cond(), locals, true, loopheadBlock);
+                    if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
+                        cond = untagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds, loopheadBlock);
                     localPreds = new ArrayList<>();
                     localPreds.add(currBlock);
                     branchEntryBlock = currBlock;
@@ -1324,24 +1328,28 @@ class BasicBlock {
                     ifBlk.setupBlock(blocksInMethod, blockBaseName, io.body(), 0, locals, afterIf, loopheadBlock);
                     localPreds.add(ifBlk);
                     currBlock = afterIf;
+                    afterIf.setPredsActives(localPreds, actives);
                     afterIf.setupBlock(blocksInMethod, blockBaseName, stmts, i+1, locals, jmpBack, loopheadBlock);
                     branchEntryBlock.jmp = new CFGCondOp(cond, ifBlk, afterIf);
                     localPreds.clear();
                     return;
                 case WhileStmt w:
                     branchEntryBlock = currBlock;
-                    BasicBlock loophead = new BasicBlock(blocksInMethod, null, loopheadBlock);
-                    loophead.setPredsActives(localPreds, actives);
+                    BasicBlock loopheadStart = new BasicBlock(blocksInMethod, null, loopheadBlock);
+                    loopheadStart.setPredsActives(localPreds, actives);
+                    loopheadStart.setIdentifier(blockBaseName);
                     cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, w.cond(), locals, true, loopheadBlock);
-                    localPreds.add(loophead);
-                    loophead.addActives(actives);
-                    BasicBlock body = new BasicBlock(blocksInMethod, blockBaseName, w.body(), 0, actives, localPreds, null, locals, loophead, loophead);
+                    if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
+                        cond = untagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds, loopheadBlock);
+                    BasicBlock loopheadEnd = currBlock;
+                    localPreds.add(loopheadEnd);
+                    loopheadEnd.addActives(actives);
+                    BasicBlock body = new BasicBlock(blocksInMethod, blockBaseName, w.body(), 0, actives, localPreds, null, locals, loopheadStart, loopheadStart);
                     BasicBlock end = new BasicBlock(blocksInMethod, blockBaseName, stmts , i + 1, actives, localPreds, null, locals, jmpBack, loopheadBlock);
-                    localPreds.remove(loophead);
-                    loophead.addPred(branchEntryBlock);
-                    loophead.setupBlock(blocksInMethod, blockBaseName, new ArrayList<>(), 0, locals, null, loopheadBlock); //set up block with null body to build phi
-                    loophead.addJump(new CFGCondOp(cond, body, end)); //add jump at end
-                    branchEntryBlock.jmp = new CFGAutoJumpOp(loophead);  
+                    localPreds.remove(loopheadEnd);
+                    loopheadStart.addPred(branchEntryBlock);
+                    loopheadEnd.addJump(new CFGCondOp(cond, body, end)); //add jump at end
+                    branchEntryBlock.jmp = new CFGAutoJumpOp(loopheadStart);  
                     return;
                 case PrintStmt p:
                     CFGValue prt = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, p.str(), locals, true, loopheadBlock);

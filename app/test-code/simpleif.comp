@@ -20,3 +20,4 @@ main with a:
         print(a)
     }
     print(0)
+    return a
