@@ -1,0 +1,29 @@
+data:
+global array vtblFoo: { moreifsFoo }
+global array fieldsFoo: { 2, 3, 4 }
+code:
+
+moreifsFoo(%this):
+	%a0 = 6
+	%b0 = 3
+	if %a0 then moreifsFoo1 else moreifsFoo2
+moreifsFoo1:
+	print(%a0)
+	jump moreifsFoo3
+moreifsFoo2:
+	print(%b0)
+	jump moreifsFoo3
+moreifsFoo3:
+	%b1 = phi(moreifsFoo1, %b0, moreifsFoo2, %b0)
+	%a1 = phi(moreifsFoo1, %a0, moreifsFoo2, %a0)
+	ret 3
+
+main:
+	%a0 = 5
+	if %a0 then main1 else main2
+main1:
+	print(%a0)
+	jump main2
+main2:
+	print(0)
+	ret 0
