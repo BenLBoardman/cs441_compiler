@@ -10,6 +10,7 @@ class Foo [
         else {
             print(b)
         }
+        return 3
 ]
 
 
