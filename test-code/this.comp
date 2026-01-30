@@ -1,0 +1,9 @@
+class thistest [
+    fields a, b
+
+    method foo() with locals:
+        print(this)
+]
+
+main with:
+    return 0
