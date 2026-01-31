@@ -3,3 +3,13 @@
 
 # Ignore Gradle build output directory
 build
+bin
+
+# Ignore vscode configs
+.vscode
+
+# Ignore C experiments
+ccomp
+
+#ignore simulator
+ir441-raw

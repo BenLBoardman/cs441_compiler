@@ -1,72 +1,23 @@
-# CS 441 Compiler Skeleton Code
+## CS441 Compiler Milestone 1 - "Connor F. Gershwin"
 
-You are allowed to use any programming language you like for this class, as long as you wrap your build-and-run behind a script named ```comp```.
+This is my submission for the first milestone of the CS441 compiler. This document explains usage instructions and the peephole optimization I chose to use.
 
-However, some of the initial structure is intimidating without some working example code for portions of the system.
+### Usage
+This compiler utilizes bash scripts to build and run and it requires Java 21 (it therefore will not work on Tux). Before running it the first time, run `./build.sh` to run the gradle build process. `./comp.sh <args>` will then run the compiler with any args specified.
+#### Args
+There is one required command-line arg and two optional arguments. With no arguments, the CFG produced is printed to the console.
+- The required arg is the name of the file to compile. It must be located within `cs441-compiler/test-code`. It can be located in a subdirectory, but that needs to be specified in the argument.
+- `-noSSA` outputs the CFG before conmverting it to SSA and terminates the program there.
+- `-o <outfile>` specifies a file to write the program output to instead of the console. This file is created if it doesn't exist and placed in the directory `cs441-compiler/test-out`. The program will recognize subdirectories if they exist, but cannot create subdirectories of its own.
 
-This repository has a working ```Tokenizer``` and a ```Parser``` capable of parsing our language's expressions. You're welcome to build on this
-directly for your project, if you want to use Java. Otherwise, take this as working example code that you can port to your implementation
-language of choice.
+### Optimization
+I chose to do pieces of multiple peephole optimizations.
+- *Rejecting Invalid Code*: There are several locations where the compiler will reject invalid code during compilation. For example, attempts to write to or perform math on `this` will be rejcted at compile time. 
+- *Constant Expression Simplification*: Constant expressions will be simplified at compile time. An example of this is shown in `constmath.comp`.
+- *This tag checking*: Pointer and integer tag checks will not be generated on accesses and calls to `this`. As well, many cases where `this` could be treated as an integer are automatically rejected at compile time.
 
-## Building
+### Errors
+There are no errors in the code that I have been using for tests, but that does not mean there aren't latent errors that I did not catch. I was able to catch many errors by slapping a loop into the simple stack code, which likely reduced the set of potential latent errors by exposing and forcing the fixing of several different pointer, jump, phi, and loop errors.
 
-Build the code with ```./gradlew compileJava```. This isn't necessary by itself if you run the code directly, in which case Gradle will compile it for you.
-
-## Kicking the Tires on the Tokenizer
-
-To experiment with the tokenizer, you can execute commands like
-```
-./gradlew run --args='tokenize ^&&x.f.g.m(4, @FOO)'
-```
-which will run the tokenizer on the expression you pass and display the sequence of tokens produced, such as:
-```
-$ ./gradlew run --args='tokenize ^&&x.f.g.m(4, @FOO)'
-
-> Task :app:run
-Caret[]
-Ampersand[]
-Ampersand[]
-Identifier[name=x]
-Dot[]
-Identifier[name=f]
-Dot[]
-Identifier[name=g]
-Dot[]
-Identifier[name=m]
-LeftParen[]
-Number[value=4]
-Comma[]
-AtSign[]
-Identifier[name=FOO]
-RightParen[]
-
-BUILD SUCCESSFUL in 726ms
-2 actionable tasks: 1 executed, 1 up-to-date
-```
-
-## Kicking the Tires on the Parser
-The parser *only* supports expressions right now, so there is a similar command for parsing an expression and printing the resulting AST:
-```
-$ ./gradlew run --args='parseExpr ^&&x.f.g.m(4, @FOO)'
-
-> Task :app:run
-Parsed arg: Constant[value=4]
-Parsed arg: ClassRef[classname=FOO]
-MethodCall[base=FieldRead[base=FieldRead[base=Variable[name=x], fieldname=f], fieldname=g], methodname=m, args=[Constant[value=4], ClassRef[classname=FOO]]]
-
-BUILD SUCCESSFUL in 773ms
-2 actionable tasks: 1 executed, 1 up-to-date
-```
-You'll need to implement parsing for statements, method and class declarations, and other things as well.
-
-## Implementation Notes
-
-This sample code makes aggressive use of some features in the last few Java releases which you may not have encountered before:
-
-- [Record Classes](https://docs.oracle.com/en/java/javase/25/language/records.html) offer a concise way to define classes that mostly exist just to hold some data,
-  which is good for ASTs and basic operations in your IR
-- [Sealed Interfaces](https://docs.oracle.com/en/java/javase/25/language/sealed-classes-and-interfaces.html) are a way to explicitly state that
-  an interface (or parent class) only has a fixed number of subtypes. This isn't strictly necessary, but plays nicely with the other feature...
-- [Type Switches and Exhaustive Pattern Matching](https://docs.oracle.com/en/java/javase/25/language/switch-expressions-and-statements.html#GUID-8D92D54A-BAEB-452A-B84E-03188B18029B)
-  offer a way for Java switch statements to (1) match based on dynamic type of an object, which removes a lot of annoying casting, and (2) check
-  that all possible cases are covered, if the static type of the expression being switched on is a sealed type (and therefore there are a fixed number of possible subtypes, so a fixed number of cases)
+### Time Spent
+While I did not track the amount of time I spent on this, my estimation is that it is above twenty hours, and possibly above thirty.

@@ -1,0 +1,5 @@
+main with x, y:
+    x = (5 + (4 * (8 / 2)))
+    y = (x + 5)
+    print(x)
+    print(y)

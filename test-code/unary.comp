@@ -1,0 +1,6 @@
+main with x, y:
+    x = 2
+    y = 1
+    y = (x * (x + y))
+    print(x)
+    print(y)

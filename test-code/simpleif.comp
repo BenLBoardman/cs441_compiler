@@ -1,0 +1,23 @@
+class Foo [
+    fields x, y, z
+
+    method moreifs() with locals a, b:
+        a = 6
+        b = 3
+        if a: {
+            print(a)
+        }
+        else {
+            print(b)
+        }
+        return 3
+]
+
+
+main with a:
+    a = 5
+    ifonly a: {
+        print(a)
+    }
+    print(0)
+    return a
