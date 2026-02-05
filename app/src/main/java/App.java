@@ -2,7 +2,10 @@ import java.lang.StringBuilder;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+
+import org.checkerframework.checker.units.qual.t;
 
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -840,13 +843,9 @@ non-sealed class CFGVar implements CFGValue {
     private boolean shldTag;
 
     public CFGVar(String name, int version) {
-        this(name, version, false);
-    }
-
-    public CFGVar(String name, int version, boolean shldTag) {
         this.name = name;
         this.version = version;
-        this.shldTag = shldTag;
+        this.shldTag = false;
     }
 
 
@@ -1098,6 +1097,7 @@ class CtrlFlowGraph {
 
     private void methodToSSA(CFGMethod m, ArrayList<CFGVar> varMap) {
         ArrayList<CFGVar> maxVerMap = new ArrayList<>(varMap);
+        setDominators(m.blocks());
         for (BasicBlock b : m.blocks()) {
             b.toSSA(varMap, maxVerMap, true, false);
             for (BasicBlock l : b.getLoopBlocks()) {
@@ -1113,6 +1113,46 @@ class CtrlFlowGraph {
                     s.setInSSA(false);
                     s.toSSA(varMap, maxVerMap, false, true); // need to propagate this further than one block
                 }
+            }
+        }
+    }
+
+    private void setDominators(ArrayList<BasicBlock> blocks) {
+        HashSet<BasicBlock> allBlocks = new HashSet<>(blocks), tempDoms;
+        blocks.get(0).addDominator(blocks.get(0));
+        boolean changed = true;
+        for(int i = 1; i < blocks.size(); i++) {
+            blocks.get(i).setDominators(allBlocks);
+        }
+        while(changed) {
+            changed = false;
+            for(int i = 1; i < blocks.size(); i++) {
+                BasicBlock b = blocks.get(i);
+                tempDoms = new HashSet<>();
+                for(BasicBlock p : b.getPreds()) {
+                    if(tempDoms.size() == 0)
+                        tempDoms.addAll(p.getDominators()); //initialize temp dominators to the dominators of the first pred
+                    else
+                        tempDoms.retainAll(p.getDominators()); //continually intersect temp with each successive pred
+                }
+                tempDoms.add(b); //add curr block to its own dominators
+                if(!tempDoms.equals(b.getDominators())) {
+                    changed = true;
+                    b.setDominators(tempDoms);
+                }
+            }
+        }
+        for(BasicBlock b : blocks) {
+            for(BasicBlock d : b.dominators) { //add inverse dominators, this is maybe necessary but I'm not sure
+                d.iDominators.add(b);
+            }
+        }
+    }
+
+    private void calcDominanceFrontier(ArrayList<BasicBlock> blocks) {
+        for(BasicBlock b : blocks) {
+            if(b.getPreds().size() > 1) {
+                for(BasicBlock p : b.getPreds());
             }
         }
     }
@@ -1171,6 +1211,12 @@ class BasicBlock {
     private ArrayList<BasicBlock> preds;
     private ArrayList<BasicBlock> succs;
     private ArrayList<BasicBlock> loopBlocks; //blocks in this loop, if this block is a loophead
+    
+    
+    public HashSet<BasicBlock> dominators; //blocks that dominate this block
+    public HashSet<BasicBlock> iDominators; //blocks this block dominates
+    public HashSet<BasicBlock> dominanceFrontier; //blocks that *almost* dominate this block
+
     public ArrayList<BasicBlock> getLoopBlocks() {
         return loopBlocks;
     }
@@ -1204,6 +1250,8 @@ class BasicBlock {
         preds = new ArrayList<>();
         succs = new ArrayList<>();
         actives = new ArrayList<>();
+        dominators = new HashSet<>();
+        dominanceFrontier = new HashSet<>();
         loopBlocks = new ArrayList<>();
         ops = new ArrayList<>();
         jmp = null;
@@ -1222,6 +1270,7 @@ class BasicBlock {
     //create a fail block
     public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, CFGFailOpt failType, ArrayList<BasicBlock> preds) {
         this(blocksInMethod, tmp, null);
+        this.preds = new ArrayList<>(preds);
         for(BasicBlock p : this.preds) {
             p.succs.add(this);
         }
@@ -1330,7 +1379,6 @@ class BasicBlock {
                     currBlock = ifBlk;
                     ifBlk.setupBlock(blocksInMethod, blockBaseName, io.body(), 0, locals, afterIf, loopheadBlock);
                     afterIf = new BasicBlock(blocksInMethod, null, loopheadBlock);
-                    localPreds.add(currBlock);
                     afterIf.setPredsActives(localPreds, actives);
                     afterIf.setupBlock(blocksInMethod, blockBaseName, stmts, i+1, locals, jmpBack, loopheadBlock);
                     branchEntryBlock.jmp = new CFGCondOp(cond, ifBlk, afterIf);
@@ -1620,6 +1668,23 @@ class BasicBlock {
         if(!preds.contains(pred)) {
             preds.add(pred);
         }
+    }
+
+    public ArrayList<BasicBlock> getPreds() {
+        return this.preds;
+    }
+
+    public HashSet<BasicBlock> getDominators() {
+        return this.dominators;
+    }
+
+    public void setDominators(HashSet<BasicBlock> dominatorSet) {
+        this.dominators = new HashSet<>();
+        dominators.addAll(dominatorSet);
+    }
+    
+    public void addDominator(BasicBlock b) {
+        this.dominators.add(b);
     }
 
     //generate a pointer tag check for the variable var
