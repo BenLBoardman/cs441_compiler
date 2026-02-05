@@ -1,9 +1,11 @@
 import java.lang.StringBuilder;
 import java.nio.file.Files;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 
 import org.checkerframework.checker.units.qual.t;
 
@@ -1143,18 +1145,31 @@ class CtrlFlowGraph {
             }
         }
         for(BasicBlock b : blocks) {
-            for(BasicBlock d : b.dominators) { //add inverse dominators, this is maybe necessary but I'm not sure
-                d.iDominators.add(b);
+            b.findNearestDominator();
+	    for(BasicBlock d : b.dominators) { //add inverse dominators, this is maybe necessary but I'm not sure
+                d.inverseDominators.add(b);
+            }
+        }
+	    calcDominanceFrontiers(blocks);
+    }
+
+    private void calcDominanceFrontiers(ArrayList<BasicBlock> blocks) {
+        BasicBlock tmp;
+        for (BasicBlock b : blocks) {
+            if (b.getPreds().size() <= 1)
+                return;
+            for (BasicBlock p : b.getPreds()) {
+                tmp = p;
+                while (tmp != b.immediateDominator) {
+                    tmp.dominanceFrontier.add(b);
+                    tmp = tmp.immediateDominator;
+                }
             }
         }
     }
 
-    private void calcDominanceFrontier(ArrayList<BasicBlock> blocks) {
-        for(BasicBlock b : blocks) {
-            if(b.getPreds().size() > 1) {
-                for(BasicBlock p : b.getPreds());
-            }
-        }
+    private void mkPhis(ArrayList<BasicBlock> blocks) {
+        
     }
 
     @Override public String toString() {
@@ -1214,7 +1229,8 @@ class BasicBlock {
     
     
     public HashSet<BasicBlock> dominators; //blocks that dominate this block
-    public HashSet<BasicBlock> iDominators; //blocks this block dominates
+    public HashSet<BasicBlock> inverseDominators; //blocks this block dominates
+    public BasicBlock immediateDominator; //the "nearest" dominator in the CFG
     public HashSet<BasicBlock> dominanceFrontier; //blocks that *almost* dominate this block
 
     public ArrayList<BasicBlock> getLoopBlocks() {
@@ -1251,6 +1267,7 @@ class BasicBlock {
         succs = new ArrayList<>();
         actives = new ArrayList<>();
         dominators = new HashSet<>();
+	    inverseDominators = new HashSet<>();
         dominanceFrontier = new HashSet<>();
         loopBlocks = new ArrayList<>();
         ops = new ArrayList<>();
@@ -1626,6 +1643,22 @@ class BasicBlock {
         for(BasicBlock p : this.preds) {
             p.succs.add(this);
         }
+    }
+
+    public void findNearestDominator() {
+	ArrayDeque<BasicBlock> bfsQueue = new ArrayDeque<>();
+	bfsQueue.add(this);
+	BasicBlock curr = bfsQueue.remove();
+	while(curr != null) {
+		if(curr != this && dominators.contains(curr)) {
+			immediateDominator = curr;
+			return;
+		}
+		for(BasicBlock p : curr.getPreds()) {
+			bfsQueue.add(p);
+		}
+	}
+	immediateDominator = null;
     }
 
     public boolean isDelayPhi() {return delayPhi; }
