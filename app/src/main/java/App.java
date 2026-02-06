@@ -1157,7 +1157,7 @@ class CtrlFlowGraph {
         BasicBlock tmp;
         for (BasicBlock b : blocks) {
             if (b.getPreds().size() <= 1)
-                return;
+                continue;
             for (BasicBlock p : b.getPreds()) {
                 tmp = p;
                 while (tmp != b.immediateDominator) {
@@ -1646,19 +1646,20 @@ class BasicBlock {
     }
 
     public void findNearestDominator() {
-	ArrayDeque<BasicBlock> bfsQueue = new ArrayDeque<>();
-	bfsQueue.add(this);
-	BasicBlock curr = bfsQueue.remove();
-	while(curr != null) {
-		if(curr != this && dominators.contains(curr)) {
-			immediateDominator = curr;
-			return;
-		}
-		for(BasicBlock p : curr.getPreds()) {
-			bfsQueue.add(p);
-		}
-	}
-	immediateDominator = null;
+        ArrayDeque<BasicBlock> bfsQueue = new ArrayDeque<>();
+        bfsQueue.add(this);
+        BasicBlock curr = bfsQueue.remove();
+        while (!bfsQueue.isEmpty()) {
+            if (curr != this && dominators.contains(curr)) {
+                immediateDominator = curr;
+                return;
+            }
+            for (BasicBlock p : curr.getPreds()) {
+                bfsQueue.add(p);
+            }
+            curr = bfsQueue.remove();
+        }
+        immediateDominator = null;
     }
 
     public boolean isDelayPhi() {return delayPhi; }
