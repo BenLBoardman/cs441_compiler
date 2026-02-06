@@ -3,6 +3,7 @@ import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
@@ -1169,7 +1170,22 @@ class CtrlFlowGraph {
     }
 
     private void mkPhis(ArrayList<BasicBlock> blocks) {
-        
+        HashSet<CFGVar> globals; // variables read aacross basic block
+        HashMap<CFGVar, HashSet<BasicBlock>> varBlocks; //key = variable, val = blocks where variable is assigned
+        HashSet<CFGVar> varKill; //vars assigned locally in-block
+        ArrayList<BasicBlock> workList; //blocks needing phi work
+        for(BasicBlock b : blocks) {
+            //initial pass
+        }
+        for(CFGVar v :varBlocks.keySet()) {
+            workList = varBlocks.get(v);
+            for(int i = 0; i < workList.size(); i++) {
+                BasicBlock b = workList.get(i);
+                for(BasicBlock d : b.dominanceFrontier) {
+                    //stuff
+                }
+            }
+        }        
     }
 
     @Override public String toString() {
