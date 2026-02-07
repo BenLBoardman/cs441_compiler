@@ -1181,39 +1181,70 @@ class CtrlFlowGraph {
         HashSet<CFGVar> globals = new HashSet<>(); // variables read aacross basic block
         HashMap<CFGVar, ArrayList<BasicBlock>> varBlocks = new HashMap<>(); //key = variable, val = blocks where variable is assigned
         HashSet<CFGVar> varKill; //vars assigned locally in-block
-        ArrayList<BasicBlock> workList; //blocks needing phi work
-        for(BasicBlock b : blocks) { //(incomplete) initial pass
+        ArrayList<BasicBlock> workList; // blocks needing phi work
+        for (BasicBlock b : blocks) { // (incomplete) initial pass
             varKill = new HashSet<>();
-            for(CFGOp c : b.getOps()) { 
-                if(c instanceof CFGAssn) {
-                    CFGVar out = ((CFGAssn)c).var();
-                    varKill.add(out);
-                    switch(((CFGAssn)c).expr()) {
-                        case CFGBinOp n:
-                            if(n.lhs() instanceof CFGVar && !varKill.contains(n.lhs()))
-                                globals.add((CFGVar)n.lhs());
-                            if(n.rhs() instanceof CFGVar && !varKill.contains(n.rhs()))
-                                globals.add((CFGVar)n.rhs());
-                            break;
-                        case CFGVar v:
-                            if(!varKill.contains(v))
-                                globals.add(v);
-                            break;
-                        case CFGCall l:
-                            break;
-                        case CFGGet g:
-                            break;
-                        case CFGAlloc o:
-                            break;
-                        default:
-                            break;
-                    }
-                    ArrayList<BasicBlock> blocksOut = varBlocks.get(out);
-                    if(blocksOut == null) 
-                        varBlocks.put(out, new ArrayList<>(Arrays.asList(b)));
-                    else if(!blocksOut.contains(b))
-                        blocksOut.add(b);
-                        
+            for (CFGOp c : b.getOps()) {
+                switch (c) {
+                    case CFGAssn a:
+                        CFGVar out = a.var();
+                        switch (a.expr()) {
+                            case CFGBinOp n:
+                                if (n.lhs() instanceof CFGVar && !varKill.contains(n.lhs()))
+                                    globals.add((CFGVar) n.lhs());
+                                if (n.rhs() instanceof CFGVar && !varKill.contains(n.rhs()))
+                                    globals.add((CFGVar) n.rhs());
+                                break;
+                            case CFGVar v:
+                                if (!varKill.contains(v))
+                                    globals.add(v);
+                                break;
+                            case CFGCall l:
+                                if (!varKill.contains(l.addr()))
+                                    globals.add(l.addr());
+                                if (!varKill.contains(l.receiver()))
+                                    globals.add(l.receiver());
+                                for (CFGValue x : l.args()) {
+                                    if (x instanceof CFGVar && !varKill.contains(x))
+                                        globals.add((CFGVar) x);
+                                }
+                                break;
+                            case CFGGet g:
+                                if (!varKill.contains(g.arr()))
+                                    globals.add(g.arr());
+                                if (g.val() instanceof CFGVar && !varKill.contains(g.val()))
+                                    globals.add((CFGVar) g.val());
+                                break;
+                            default:
+                                break;
+                        }
+                        varKill.add(out);
+                        ArrayList<BasicBlock> blocksOut = varBlocks.get(out);
+                        if (blocksOut == null)
+                            varBlocks.put(out, new ArrayList<>(Arrays.asList(b)));
+                        else if (!blocksOut.contains(b))
+                            blocksOut.add(b);
+                        break;
+                    case CFGSet s:
+                        if(!varKill.contains(s.addr()))
+                            globals.add(s.addr());
+                        if(s.index() instanceof CFGVar && !varKill.contains(s.index()))
+                            globals.add((CFGVar)s.index());
+                        if(s.val() instanceof CFGVar && !varKill.contains(s.val()))
+                            globals.add((CFGVar)s.val());
+                        break;
+                    case CFGPrint p:
+                        if(p.val() instanceof CFGVar && !varKill.contains(p.val()))
+                            globals.add((CFGVar)p.val());
+                        break;
+                    case CFGStore st:
+                        if(!varKill.contains(st.base()))
+                            globals.add(st.base());
+                        if(st.index() instanceof CFGVar && !varKill.contains(st.index()))
+                            globals.add((CFGVar)st.index());
+                        break;
+                    default:
+                        break;
                 }
             }
         }
@@ -2081,6 +2112,7 @@ public class App {
                     break;
                 case "-simpleSSA":
                     simple = true;
+                    break;
                 case "-o":
                     if(nextArg >= (args.length - 1))
                         throw new IllegalArgumentException("Error: received -o flag but no following arg to designate output file");

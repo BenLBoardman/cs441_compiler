@@ -5,9 +5,11 @@ class Foo [
         a = 6
         b = 3
         if a: {
+            b = a
             print(a)
         }
         else {
+            a = b
             print(b)
         }
         return 3
