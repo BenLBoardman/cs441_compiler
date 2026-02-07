@@ -2,13 +2,11 @@ import java.lang.StringBuilder;
 import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Queue;
-
-import org.checkerframework.checker.units.qual.t;
 
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -1077,6 +1075,15 @@ class CtrlFlowGraph {
     }
 
     public void toSSA() {
+        for(CFGClass c : classes) {
+            for(CFGMethod m : c.methods()) {
+                setDominators(m.blocks());
+                mkPhis(m.blocks());
+            }
+        }
+    }
+
+    public void toSSASimple() {
         ArrayList<CFGVar> varMap;
         for (CFGClass c : classes) {
             for(CFGMethod m : c.methods()) {
@@ -1087,7 +1094,7 @@ class CtrlFlowGraph {
                 for(CFGVar a : m.locals()) {
                     varMap.add(a);
                 }
-                methodToSSA(m, varMap);
+                methodToSimpleSSA(m, varMap);
             }
         }
 
@@ -1095,10 +1102,10 @@ class CtrlFlowGraph {
         for (CFGVar a : main.locals()) {
             varMap.add(a);
         }
-        methodToSSA(main, varMap);
+        methodToSimpleSSA(main, varMap);
     }
 
-    private void methodToSSA(CFGMethod m, ArrayList<CFGVar> varMap) {
+    private void methodToSimpleSSA(CFGMethod m, ArrayList<CFGVar> varMap) {
         ArrayList<CFGVar> maxVerMap = new ArrayList<>(varMap);
         setDominators(m.blocks());
         for (BasicBlock b : m.blocks()) {
@@ -1120,6 +1127,7 @@ class CtrlFlowGraph {
         }
     }
 
+    //calculate dominators, inverse dominators, nearest dominator, and dominance frontier for a set of blocks
     private void setDominators(ArrayList<BasicBlock> blocks) {
         HashSet<BasicBlock> allBlocks = new HashSet<>(blocks), tempDoms;
         blocks.get(0).addDominator(blocks.get(0));
@@ -1170,18 +1178,55 @@ class CtrlFlowGraph {
     }
 
     private void mkPhis(ArrayList<BasicBlock> blocks) {
-        HashSet<CFGVar> globals; // variables read aacross basic block
-        HashMap<CFGVar, HashSet<BasicBlock>> varBlocks; //key = variable, val = blocks where variable is assigned
+        HashSet<CFGVar> globals = new HashSet<>(); // variables read aacross basic block
+        HashMap<CFGVar, ArrayList<BasicBlock>> varBlocks = new HashMap<>(); //key = variable, val = blocks where variable is assigned
         HashSet<CFGVar> varKill; //vars assigned locally in-block
         ArrayList<BasicBlock> workList; //blocks needing phi work
-        for(BasicBlock b : blocks) {
-            //initial pass
+        for(BasicBlock b : blocks) { //(incomplete) initial pass
+            varKill = new HashSet<>();
+            for(CFGOp c : b.getOps()) { 
+                if(c instanceof CFGAssn) {
+                    CFGVar out = ((CFGAssn)c).var();
+                    varKill.add(out);
+                    switch(((CFGAssn)c).expr()) {
+                        case CFGBinOp n:
+                            if(n.lhs() instanceof CFGVar && !varKill.contains(n.lhs()))
+                                globals.add((CFGVar)n.lhs());
+                            if(n.rhs() instanceof CFGVar && !varKill.contains(n.rhs()))
+                                globals.add((CFGVar)n.rhs());
+                            break;
+                        case CFGVar v:
+                            if(!varKill.contains(v))
+                                globals.add(v);
+                            break;
+                        case CFGCall l:
+                            break;
+                        case CFGGet g:
+                            break;
+                        case CFGAlloc o:
+                            break;
+                        default:
+                            break;
+                    }
+                    ArrayList<BasicBlock> blocksOut = varBlocks.get(out);
+                    if(blocksOut == null) 
+                        varBlocks.put(out, new ArrayList<>(Arrays.asList(b)));
+                    else if(!blocksOut.contains(b))
+                        blocksOut.add(b);
+                        
+                }
+            }
         }
-        for(CFGVar v :varBlocks.keySet()) {
+        for(CFGVar v : globals) {
             workList = varBlocks.get(v);
             for(int i = 0; i < workList.size(); i++) {
                 BasicBlock b = workList.get(i);
                 for(BasicBlock d : b.dominanceFrontier) {
+                    if(!d.hasPhi(v)) {
+                        d.addPhi(v);
+                        if(!workList.contains(d))
+                            workList.add(d);
+                    }
                     //stuff
                 }
             }
@@ -1238,6 +1283,33 @@ class BasicBlock {
     private String identifier;
     private ArrayList<CFGVar> actives;
     private ArrayList<CFGOp> ops;
+    private ArrayList <CFGAssn> phis; //phis stored in their own list for simplicity
+    
+    public ArrayList<CFGOp> getOps() {
+        return ops;
+    }
+    public void addPhi(CFGVar v) {
+        ArrayList<CFGVar> vars = new ArrayList<>();
+        ArrayList<BasicBlock> blocks = new ArrayList<>();
+        for(BasicBlock p : preds) {
+            vars.add(v);
+            blocks.add(p);
+        }
+        CFGAssn newPhi = new CFGAssn(v, new CFGPhi(blocks, vars));
+        phis.add(newPhi);
+        ops.add(0, newPhi);
+    }
+    public boolean hasPhi(CFGVar v) {
+        for(CFGAssn p : phis) {
+            if(p.var().equals(v))
+                return true;
+        }
+        return false;
+    }
+    public ArrayList<CFGAssn> getPhis() {
+        return phis;
+    }
+
     private CFGJumpOp jmp;
     private ArrayList<BasicBlock> preds;
     private ArrayList<BasicBlock> succs;
@@ -1287,6 +1359,7 @@ class BasicBlock {
         dominanceFrontier = new HashSet<>();
         loopBlocks = new ArrayList<>();
         ops = new ArrayList<>();
+        phis = new ArrayList<>();
         jmp = null;
         if(loopheadBlock != null)
             loopheadBlock.loopBlocks.add(this);
@@ -1664,8 +1737,9 @@ class BasicBlock {
     public void findNearestDominator() {
         ArrayDeque<BasicBlock> bfsQueue = new ArrayDeque<>();
         bfsQueue.add(this);
-        BasicBlock curr = bfsQueue.remove();
+        BasicBlock curr;
         while (!bfsQueue.isEmpty()) {
+            curr = bfsQueue.remove();
             if (curr != this && dominators.contains(curr)) {
                 immediateDominator = curr;
                 return;
@@ -1673,7 +1747,7 @@ class BasicBlock {
             for (BasicBlock p : curr.getPreds()) {
                 bfsQueue.add(p);
             }
-            curr = bfsQueue.remove();
+            
         }
         immediateDominator = null;
     }
@@ -1995,7 +2069,7 @@ public class App {
         }
         String inFilePath = args[0];
         String outFilePath = "";
-        boolean ssa = true, outName = false;
+        boolean ssa = true, outName = false, simple = false;
         if(args.length >= 3 && args[1].equals("-o")) {
             
         }
@@ -2005,6 +2079,8 @@ public class App {
                 case "-noSSA":
                     ssa = false;
                     break;
+                case "-simpleSSA":
+                    simple = true;
                 case "-o":
                     if(nextArg >= (args.length - 1))
                         throw new IllegalArgumentException("Error: received -o flag but no following arg to designate output file");
@@ -2034,7 +2110,7 @@ public class App {
         cfg = new CtrlFlowGraph();
         cfg.mkCfg(pc);
         if(ssa)
-            cfg.toSSA();
+            ssaIfy(simple);
         if(outFilePath == "") {
             System.out.println(cfg);
             return;
@@ -2046,5 +2122,12 @@ public class App {
             e.printStackTrace();
         }
 
+    }
+
+    public static void ssaIfy(boolean simple) {
+        if(simple)
+            cfg.toSSASimple();
+        else
+            cfg.toSSA();
     }
 }
