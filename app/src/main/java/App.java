@@ -1545,8 +1545,10 @@ class BasicBlock {
                     return;
                 case WhileStmt w:
                     branchEntryBlock = currBlock;
+                    localPreds.add(branchEntryBlock);
                     BasicBlock loopheadStart = new BasicBlock(blocksInMethod, null, loopheadBlock);
                     loopheadStart.setPredsActives(localPreds, actives);
+                    localPreds.remove(branchEntryBlock);
                     loopheadStart.setIdentifier(blockBaseName);
                     cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, w.cond(), locals, true, loopheadBlock);
                     if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
@@ -1555,10 +1557,10 @@ class BasicBlock {
                     localPreds.add(loopheadEnd);
                     loopheadEnd.addActives(actives);
                     BasicBlock body = new BasicBlock(blocksInMethod, blockBaseName, w.body(), 0, actives, localPreds, null, locals, loopheadStart, loopheadStart);
-                    BasicBlock end = new BasicBlock(blocksInMethod, blockBaseName, stmts , i + 1, actives, localPreds, null, locals, jmpBack, loopheadBlock);
+                    currBlock.succs.add(loopheadStart);
+                    BasicBlock after = new BasicBlock(blocksInMethod, blockBaseName, stmts , i + 1, actives, localPreds, null, locals, jmpBack, loopheadBlock);
                     localPreds.remove(loopheadEnd);
-                    loopheadStart.addPred(branchEntryBlock);
-                    loopheadEnd.addJump(new CFGCondOp(cond, body, end)); //add jump at end
+                    loopheadEnd.addJump(new CFGCondOp(cond, body, after)); //add jump at end
                     branchEntryBlock.jmp = new CFGAutoJumpOp(loopheadStart);  
                     return;
                 case PrintStmt p:
@@ -1742,6 +1744,7 @@ class BasicBlock {
                 break;
         }
     }
+    
     CFGExpr exprToSSA(CFGExpr expr, ArrayList<CFGVar> varMap, boolean updatePhi) {
         switch(expr) {
             case CFGVar v:
