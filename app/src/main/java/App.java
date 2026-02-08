@@ -900,7 +900,7 @@ non-sealed class CFGVar implements CFGValue {
 }
 record CFGPrimitive(long value) implements CFGValue { @Override public String toString() {return ""+this.value; } }
 
-record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock addr, ArrayList<BasicBlock> blocks) implements CFGElement {
+record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock addr, ArrayList<BasicBlock> blocks, ArrayList<CFGVar> vars) implements CFGElement {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -920,6 +920,10 @@ record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock addr, A
             sb.append("\n"+blocks.get(i).getIdentifier()+":\n").append(blocks.get(i));
         }
         return sb.toString();
+    }
+
+    public void addVar(CFGVar v) {
+        vars.add(v);
     }
 }
 
@@ -1044,8 +1048,10 @@ class CtrlFlowGraph {
         BasicBlock.blockId = 0;
         
         ArrayList<BasicBlock> blocksInMethod = new ArrayList<>();
+        ArrayList <CFGVar> vars = new ArrayList<>(Arrays.asList(args));
+        vars.addAll(Arrays.asList(locals));
         BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new ArrayList<>(), tmp, locals, null, null);
-        return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod);
+        return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod, vars);
     }
 
     public static int getFieldId(String fieldName) {
@@ -1075,10 +1081,21 @@ class CtrlFlowGraph {
     }
 
     public void toSSA() {
+        ArrayList<CFGVar> varMap;
+
+        varMap = new ArrayList<>(main.vars());
+                setDominators(main.blocks());
+                mkPhis(main.blocks()); //insert temp phis
+                for(BasicBlock b : main.blocks())
+                    b.toSSA(varMap);
+        
         for(CFGClass c : classes) {
             for(CFGMethod m : c.methods()) {
+                varMap = new ArrayList<>(m.vars());
                 setDominators(m.blocks());
-                mkPhis(m.blocks());
+                mkPhis(m.blocks()); //insert temp phis
+                for(BasicBlock b : m.blocks())
+                    b.toSSA(varMap);
             }
         }
     }
@@ -1109,19 +1126,19 @@ class CtrlFlowGraph {
         ArrayList<CFGVar> maxVerMap = new ArrayList<>(varMap);
         setDominators(m.blocks());
         for (BasicBlock b : m.blocks()) {
-            b.toSSA(varMap, maxVerMap, true, false);
+            b.toSimpleSSA(varMap, maxVerMap, true, false);
             for (BasicBlock l : b.getLoopBlocks()) {
-                l.toSSA(varMap, maxVerMap, true, false);
+                l.toSimpleSSA(varMap, maxVerMap, true, false);
             }
             varMap.clear();
             varMap.addAll(maxVerMap);
             if (b.isDelayPhi()) {
                 b.mkPhis(varMap);
                 b.setInSSA(false);
-                b.toSSA(varMap, maxVerMap, true, false);
+                b.toSimpleSSA(varMap, maxVerMap, true, false);
                 for (BasicBlock s : b.getLoopBlocks()) {
                     s.setInSSA(false);
-                    s.toSSA(varMap, maxVerMap, false, true); // need to propagate this further than one block
+                    s.toSimpleSSA(varMap, maxVerMap, false, true); // need to propagate this further than one block
                 }
             }
         }
@@ -1328,8 +1345,8 @@ class BasicBlock {
         }
         CFGAssn newPhi = new CFGAssn(v, new CFGPhi(blocks, vars));
         phis.add(newPhi);
-        ops.add(0, newPhi);
     }
+
     public boolean hasPhi(CFGVar v) {
         for(CFGAssn p : phis) {
             if(p.var().equals(v))
@@ -1485,19 +1502,24 @@ class BasicBlock {
                     localPreds.add(currBlock);
                     branchEntryBlock = currBlock;
                     ifBlk = new BasicBlock(blocksInMethod, null, loopheadBlock);
-                    BasicBlock elseBlk = new BasicBlock(blocksInMethod, null, loopheadBlock);
-                    if(i < stmts.size()-1)
+                    if(i < stmts.size()-1) {
                         afterIf = new BasicBlock(blocksInMethod, null, loopheadBlock);
+                        blocksInMethod.remove(blocksInMethod.indexOf(afterIf));
+                    }
                     ifBlk.setPredsActives(localPreds, actives);
-                    elseBlk.setPredsActives(localPreds, actives);
+                    
                     currBlock = ifBlk;
                     ifBlk.setupBlock(blocksInMethod, blockBaseName, ie.body(), 0, locals, afterIf, loopheadBlock); 
-                    localPreds.add(currBlock);
+                    BasicBlock endIf = currBlock;
+                    BasicBlock elseBlk = new BasicBlock(blocksInMethod, null, loopheadBlock);
+                    elseBlk.setPredsActives(localPreds, actives);
                     currBlock = elseBlk;
                     elseBlk.setupBlock(blocksInMethod, blockBaseName, ie.elseBody(), 0, locals, afterIf, loopheadBlock);
                     localPreds.remove(branchEntryBlock);
                     localPreds.add(currBlock);
+                    localPreds.add(endIf);
                     if(afterIf != null){
+                        blocksInMethod.add(afterIf);
                         currBlock = afterIf;
                         afterIf.setPredsActives(localPreds, actives);
                         afterIf.setupBlock(blocksInMethod, blockBaseName, stmts, i + 1, locals, jmpBack, loopheadBlock);
@@ -1604,8 +1626,41 @@ class BasicBlock {
         return;
     }
 
+    public void toSSA(ArrayList<CFGVar> varMap) {
+        if(inSSA)
+            return;
+        inSSA = true;
+        for(CFGAssn phi : phis) {
+            CFGVar oldVer = varMap.get(varMap.indexOf(phi.var()));
+            CFGVar newVer = new CFGVar(oldVer);
+            phi.setVar(newVer);
+            varMap.remove(oldVer);
+            varMap.add(newVer);
+        }
+        for(CFGOp o : ops) {
+            opToSSA(o, true, varMap, varMap, false);
+        }
+        jumpToSSA(varMap, false);
+        for(BasicBlock succ : succs) { //put all succs of this block that it also dominates into SSA
+            ArrayList<CFGVar> outVars = new ArrayList<>(varMap);
+            for (CFGAssn a : succ.phis) {
+                CFGVar phiVar = a.var();
+                CFGVar updatedVar = outVars.get(outVars.indexOf(phiVar));
+                CFGPhi phiOp = (CFGPhi)a.expr();
+                for(int i = 0; i < phiOp.blocks().size(); i++) {
+                    if(phiOp.blocks().get(i) == this) {
+                        phiOp.varVersions().set(i, updatedVar);
+                    }
+                }
+            }
+            if(inverseDominators.contains(succ)) {
+                succ.toSSA(outVars);
+            }
+        }
+    }
+
     //convert block to SSA form
-    public void toSSA(ArrayList<CFGVar> varMap, ArrayList<CFGVar> maxVerMap, boolean canReassign, boolean updatePhi) {
+    public void toSimpleSSA(ArrayList<CFGVar> varMap, ArrayList<CFGVar> maxVerMap, boolean canReassign, boolean updatePhi) {
         //initial make phis
         if(inSSA)
             return;
@@ -1624,50 +1679,59 @@ class BasicBlock {
         
         //phis get added up here
         for(CFGOp o : ops) {
-            switch (o) {
-                case CFGAssn a:
-                    a.setExpr(exprToSSA(a.expr(), varMap, updatePhi));
-                    //do whatever thing needs to be added for exprs
-                    if(canReassign) {
-                        CFGVar base = a.var();
-                        int index = varMap.indexOf(base);
-                        if (index == -1) // assignment to temporary value
-                            continue;
-                        CFGVar storedVar = varMap.get(index);
-                        CFGVar newVar = new CFGVar(storedVar);
-                        a.setVar(newVar);
-                        varMap.remove(storedVar);
-                        varMap.add(newVar);
-                        maxVerMap.remove(storedVar);
-                        maxVerMap.add(newVar);
-                        actives.remove(base);
-                        actives.add(newVar);
-                    } else { //we are not making a new assignment but we need to remember that a new version of the var exists for the future
-                        CFGVar base = a.var();
-                        int index = varMap.indexOf(base);
-                        if (index == -1) // assignment to temporary value
-                            continue;
-                        CFGVar storedVar = varMap.get(index);
-                        varMap.remove(storedVar);
-                        varMap.add(base);
-                    }
-                    break;
-                case CFGPrint p:
-                    p.setVal((CFGValue)exprToSSA(p.val(), varMap, updatePhi));
-                    break;
-                case CFGSet s:
-                    s.setAddr((CFGVar)exprToSSA(s.addr(), varMap, updatePhi));
-                    s.setIndex((CFGValue)exprToSSA(s.index(), varMap, updatePhi));
-                    s.setVal((CFGData)exprToSSA(s.val(), varMap, updatePhi));
-                    break;
-                case CFGStore s:
-                    s.setIndex((CFGData)exprToSSA(s.index(), varMap, updatePhi));
-                    s.setBase((CFGVar)exprToSSA(s.base(), varMap, updatePhi));
-                    break;
-                default:
-                    break;
-            }
+            opToSSA(o, canReassign, varMap, maxVerMap, updatePhi);
         }
+        jumpToSSA(varMap, updatePhi);
+    }
+
+    void opToSSA (CFGOp o, boolean canReassign, ArrayList<CFGVar> varMap, ArrayList<CFGVar> maxVerMap, boolean updatePhi) {
+        switch (o) {
+            case CFGAssn a:
+                a.setExpr(exprToSSA(a.expr(), varMap, updatePhi));
+                // do whatever thing needs to be added for exprs
+                if (canReassign) {
+                    CFGVar base = a.var();
+                    int index = varMap.indexOf(base);
+                    if (index == -1) // assignment to temporary value
+                        return;
+                    CFGVar storedVar = varMap.get(index);
+                    CFGVar newVar = new CFGVar(storedVar);
+                    a.setVar(newVar);
+                    varMap.remove(storedVar);
+                    varMap.add(newVar);
+                    maxVerMap.remove(storedVar);
+                    maxVerMap.add(newVar);
+                    actives.remove(base);
+                    actives.add(newVar);
+                } else { // we are not making a new assignment but we need to remember that a new version
+                         // of the var exists for the future
+                    CFGVar base = a.var();
+                    int index = varMap.indexOf(base);
+                    if (index == -1) // assignment to temporary value
+                        return;
+                    CFGVar storedVar = varMap.get(index);
+                    varMap.remove(storedVar);
+                    varMap.add(base);
+                }
+                break;
+            case CFGPrint p:
+                p.setVal((CFGValue) exprToSSA(p.val(), varMap, updatePhi));
+                break;
+            case CFGSet s:
+                s.setAddr((CFGVar) exprToSSA(s.addr(), varMap, updatePhi));
+                s.setIndex((CFGValue) exprToSSA(s.index(), varMap, updatePhi));
+                s.setVal((CFGData) exprToSSA(s.val(), varMap, updatePhi));
+                break;
+            case CFGStore s:
+                s.setIndex((CFGData) exprToSSA(s.index(), varMap, updatePhi));
+                s.setBase((CFGVar) exprToSSA(s.base(), varMap, updatePhi));
+                break;
+            default:
+                break;
+        }
+    }
+
+    void jumpToSSA(ArrayList<CFGVar> varMap, boolean updatePhi) {
         switch(jmp) {
             case CFGCondOp c:
                 c.setCond((CFGValue)exprToSSA(c.cond(), varMap, updatePhi));
@@ -1678,7 +1742,6 @@ class BasicBlock {
                 break;
         }
     }
-
     CFGExpr exprToSSA(CFGExpr expr, ArrayList<CFGVar> varMap, boolean updatePhi) {
         switch(expr) {
             case CFGVar v:
@@ -1787,6 +1850,8 @@ class BasicBlock {
     //print block as a String
     @Override public String toString() {
         StringBuilder sb = new StringBuilder();
+        for(CFGAssn phi : phis)
+            sb.append("\t" + phi + "\n");
         for(CFGOp op : ops) {
             sb.append("\t" + op + "\n");
         }
