@@ -1237,7 +1237,9 @@ class CtrlFlowGraph {
                         }
                         varKill.add(out);
                         ArrayList<BasicBlock> blocksOut = varBlocks.get(out);
-                        if (blocksOut == null)
+                        if(out.name().equals(""))
+                            continue;
+                        else if (blocksOut == null)
                             varBlocks.put(out, new ArrayList<>(Arrays.asList(b)));
                         else if (!blocksOut.contains(b))
                             blocksOut.add(b);
@@ -1266,7 +1268,10 @@ class CtrlFlowGraph {
             }
         }
         for(CFGVar v : globals) {
+            
             workList = varBlocks.get(v);
+            if(v.name().equals("this") || v.name().equals("") || varBlocks.get(v) == null)
+                continue; //if var is this, temp, or not written across multiple blocks
             for(int i = 0; i < workList.size(); i++) {
                 BasicBlock b = workList.get(i);
                 for(BasicBlock d : b.dominanceFrontier) {
@@ -1911,7 +1916,8 @@ class BasicBlock {
     }
 
     //generate a pointer tag check for the variable var
-    public void genPtrTagChk(CFGVar obj, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<BasicBlock> localPreds, BasicBlock loopheadBlock) {
+    public void genPtrTagChk(CFGVar obj, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<BasicBlock> preds, BasicBlock loopheadBlock) {
+        ArrayList<BasicBlock> localPreds = new ArrayList<>(preds);
         if(obj.isThis())
             return; //PEEPHOLE OPT - DONT GENERATE TAG CHECKS FOR THIS
         tmp = new CFGVar(tmp);
