@@ -160,8 +160,8 @@ class Tokenizer {
             case ']': current++; return rbk;
             case ':': current++; return colon;
             case '!':
-                if(text.charAt(current) == '=') { current++; return new Operator("!="); } 
-                current++; return not;
+                current ++; if(text.charAt(current) == '=') { current++; return new Operator("!="); } 
+                return not;
             case '@': current++; return at;
             case '^': current++; return caret;
             case '&': current++; return amp;
@@ -525,7 +525,8 @@ class Parser {
         }
         tok.next(); //throw away colon
         ArrayList<Statement> body = new ArrayList<>();
-        while(tok.peek().getType() != TokenType.METHOD && tok.peek().getType() != TokenType.EOF && tok.peek().getType() != TokenType.RIGHT_BRACK) {
+        while(tok.peek().getType() != TokenType.METHOD
+            && tok.peek().getType() != TokenType.EOF && tok.peek().getType() != TokenType.RIGHT_BRACK) {
             try {
                 body.add(parseStmt());
                 if(tok.peek().getType() == TokenType.RETURN) { //unconditional return
@@ -1070,7 +1071,6 @@ class CtrlFlowGraph {
         return -1;
     }
 
-
     public static CFGVar getActive(ArrayList<CFGVar> actives, String varName) {
         for(CFGVar v : actives) {
             if(v.name().equals(varName)) {
@@ -1082,16 +1082,15 @@ class CtrlFlowGraph {
 
     public void toSSA(boolean simple) {
         ArrayList<CFGVar> varMap;
-
         varMap = new ArrayList<>(main.vars());
-                setDominators(main.blocks());
-                if(simple)
-                    mkSimplePhis(main.blocks()); //insert temp phis - simple ver
-                else
-                    mkPhis(main.blocks()); //insert temp phis
-                for(BasicBlock b : main.blocks())
-                    b.toSSA(varMap);
-        
+        setDominators(main.blocks());
+        if (simple)
+            mkSimplePhis(main.blocks()); // insert temp phis - simple ver
+        else
+            mkPhis(main.blocks()); // insert temp phis
+        for (BasicBlock b : main.blocks())
+            b.toSSA(varMap);
+
         for(CFGClass c : classes) {
             for(CFGMethod m : c.methods()) {
                 varMap = new ArrayList<>(m.vars());
@@ -1314,6 +1313,7 @@ class BasicBlock {
     public ArrayList<CFGOp> getOps() {
         return ops;
     }
+    
     public void addPhi(CFGVar v) {
         ArrayList<CFGVar> vars = new ArrayList<>();
         ArrayList<BasicBlock> blocks = new ArrayList<>();
@@ -1324,6 +1324,7 @@ class BasicBlock {
         CFGAssn newPhi = new CFGAssn(v, new CFGPhi(blocks, vars));
         phis.add(newPhi);
     }
+    
     public boolean hasPhi(CFGVar v) {
         for(CFGAssn p : phis) {
             if(p.var().equals(v))
@@ -1331,6 +1332,7 @@ class BasicBlock {
         }
         return false;
     }
+    
     public ArrayList<CFGAssn> getPhis() {
         return phis;
     }
@@ -1623,7 +1625,6 @@ class BasicBlock {
             }
         }
     }
-
 
     void opToSSA (CFGOp o, ArrayList<CFGVar> varMap) {
         switch (o) {
