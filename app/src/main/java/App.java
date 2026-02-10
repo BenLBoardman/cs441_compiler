@@ -747,7 +747,7 @@ non-sealed class CFGSet implements CFGOp{
 sealed interface CFGExpr extends CFGElement
     permits CFGData, CFGGet, CFGPhi, CFGCall, CFGAlloc, CFGLoad, CFGBinOp { public boolean equals(Object o); }
 
-record CFGBinOp(CFGExpr lhs, String op, CFGExpr rhs) implements CFGExpr {
+record CFGBinOp(CFGValue lhs, String op, CFGValue rhs) implements CFGExpr {
     @Override
     public String toString() {
         return lhs + " " + op + " " + rhs;
@@ -1772,8 +1772,8 @@ class BasicBlock {
             case CFGPrimitive c:
                 return expr;
             case CFGBinOp b:
-                CFGExpr left = exprToSSA(b.lhs(), varMap);
-                CFGExpr right = exprToSSA(b.rhs(), varMap);
+                CFGValue left = (CFGValue)exprToSSA(b.lhs(), varMap);
+                CFGValue right = (CFGValue)exprToSSA(b.rhs(), varMap);
                 CFGExpr currExpr = new CFGBinOp(left, b.op(), right);
                 return currExpr;
             case CFGCall c:
@@ -1934,7 +1934,7 @@ class BasicBlock {
             case CFGVar v:
                 return v.shouldTag() ? tagInt(out, v) : v;
             case CFGBinOp b:
-                return new CFGBinOp(tagInts(null, b.lhs()), b.op(), tagInts(null, b.rhs()));
+                return new CFGBinOp((CFGValue)tagInts(null, b.lhs()), b.op(), (CFGValue)tagInts(null, b.rhs()));
             default: //anything other than a const or a binop
                 return expr;
         }
@@ -2037,7 +2037,7 @@ class BasicBlock {
                     rhs = tmp;
                 }
 
-                out = new CFGBinOp(lhs, b.op(), rhs);
+                out = new CFGBinOp((CFGValue)lhs, b.op(), (CFGValue)rhs);
                 if(!b.isBool()) {
                     tmp = new CFGVar(tmp);
                     CFGVar pretag = tmp;
