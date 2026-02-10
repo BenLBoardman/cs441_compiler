@@ -1412,8 +1412,8 @@ class BasicBlock {
                         index = vn.indexOf(expr);
                         if (index != -1) {
                             precalc = names.get(index);
-                            a.setExpr(precalc); //use numbered value
-                            replaceUsages(v, precalc);
+                            ops.remove(a);
+                            replaceGlobalUsages(v, precalc);
                             //traverse through block & replace exprs containing v with precalc
                         }
                         else {
@@ -1433,20 +1433,38 @@ class BasicBlock {
         }
     }
 
+    //replace ALL usages of oldVar in the method with newVar
+    public void replaceGlobalUsages(CFGVar oldVar, CFGVar newVar) {
+        this.replaceUsages(oldVar, newVar); //replace all usages in this block
+        for(BasicBlock s : this.succs) {
+            s.replaceGlobalUsages(oldVar, newVar); //replace usages in successors
+        }
+    }
+
     //replace usages of the CFGVar old with new (in expressions)
     public void replaceUsages(CFGVar oldVar, CFGVar newVar) {
         for(CFGOp o : ops) {
             switch (o) {
                 //need cases for all op types calling replaceUsagesExpr on their exprs
                 case CFGAssn a:
-                    
+                    replaceUsagesExpr(a.expr(), oldVar, newVar);
+                    break;
+                case CFGStore s:
+                    replaceUsagesExpr(s.base(), oldVar, newVar);
+                    replaceUsagesExpr(s.index(), oldVar, newVar);
+                    break;
+                case CFGSet s:
+                    replaceUsagesExpr(s.addr(), oldVar, newVar);
+                    replaceUsagesExpr(s.index(), oldVar, newVar);
+                    replaceUsagesExpr(s.val(), oldVar, newVar);
+                    break;
+                case CFGPrint p:
+                    replaceUsagesExpr(p.val(), oldVar, newVar);
                     break;
                 default:
                     break;
             }
         }
-
-        // TODO Auto-generated method stub
     }
     
     //replace usages of oldVar with newVar in the expression e
@@ -1456,7 +1474,25 @@ class BasicBlock {
                 return v.equals(oldVar) ? newVar : v;
             case CFGBinOp b:
                 return new CFGBinOp(oldVar.equals(b.lhs()) ? newVar : b.lhs(), b.op(), oldVar.equals(b.rhs()) ? newVar : b.rhs());
-            //need cases for phi (?), get, load, call
+            case CFGGet g:
+                return new CFGGet(oldVar.equals(g.arr()) ? newVar : g.arr(), oldVar.equals(g.val()) ? newVar : g.val());
+            case CFGLoad l:
+                return new CFGLoad(oldVar.equals(l.base()) ? newVar : l.base());
+            case CFGCall c:
+                CFGValue[] newArgs = new CFGValue[c.args().length];
+                for(int i = 0; i < newArgs.length; i++) {
+                    CFGValue oldArg = c.args()[i];
+                    newArgs[i] = oldVar.equals(oldArg) ? newVar : oldArg;
+                }
+                return new CFGCall(oldVar.equals(c.addr()) ? newVar : c.addr(), 
+                    oldVar.equals(c.receiver()) ? newVar : c.receiver(), newArgs);
+            case CFGPhi p:
+                ArrayList<CFGVar> vars = p.varVersions();
+                for(int i = 0; i < vars.size(); i++) {
+                    CFGVar var = vars.get(i);
+                    vars.set(i, oldVar.equals(var) ? newVar : var);
+                }
+                return p;
             default: //CFGPrimitive, 
                 return e;
 
