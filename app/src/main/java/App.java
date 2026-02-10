@@ -1437,6 +1437,7 @@ class BasicBlock {
     public void replaceUsages(CFGVar oldVar, CFGVar newVar) {
         for(CFGOp o : ops) {
             switch (o) {
+                //need cases for all op types calling replaceUsagesExpr on their exprs
                 case CFGAssn a:
                     
                     break;
@@ -1449,8 +1450,17 @@ class BasicBlock {
     }
     
     //replace usages of oldVar with newVar in the expression e
-    public void replaceUsagesExpr(CFGExpr e, CFGVar oldVar, CFGVar newVar) {
-        
+    public CFGExpr replaceUsagesExpr(CFGExpr e, CFGVar oldVar, CFGVar newVar) {
+        switch(e) {
+            case CFGVar v:
+                return v.equals(oldVar) ? newVar : v;
+            case CFGBinOp b:
+                return new CFGBinOp(oldVar.equals(b.lhs()) ? newVar : b.lhs(), b.op(), oldVar.equals(b.rhs()) ? newVar : b.rhs());
+            //need cases for phi (?), get, load, call
+            default: //CFGPrimitive, 
+                return e;
+
+        }
     }
 
     public void addPhi(CFGVar v) {
