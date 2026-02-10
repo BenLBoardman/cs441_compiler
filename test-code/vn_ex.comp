@@ -1,0 +1,6 @@
+main with a, b, c:
+    a = 1
+    b = 2
+    b = a
+    c = 2
+    b = c

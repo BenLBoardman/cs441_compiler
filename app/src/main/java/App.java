@@ -752,6 +752,14 @@ record CFGBinOp(CFGValue lhs, String op, CFGValue rhs) implements CFGExpr {
     public String toString() {
         return lhs + " " + op + " " + rhs;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if(!(o instanceof CFGBinOp))
+            return false;
+        CFGBinOp b = (CFGBinOp)o;
+        return this.lhs == b.lhs && this.op == b.op && this.rhs == b.rhs;
+    }
 }
 
 record CFGGet(CFGVar arr, CFGValue val) implements CFGExpr {
@@ -786,7 +794,22 @@ record CFGCall(CFGVar addr, CFGVar receiver, CFGValue[] args) implements CFGExpr
         return sb.append(')').toString();
     }
 } 
-record CFGLoad(CFGVar base) implements CFGExpr { @Override public String toString() { return "load(" + base + ")"; } }
+
+record CFGLoad(CFGVar base) implements CFGExpr {
+    @Override
+    public String toString() {
+        return "load(" + base + ")";
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if(!(o instanceof CFGLoad))
+            return false;
+        CFGLoad l = (CFGLoad)o;
+        return l.base.equals(this.base);
+    } 
+}
+
 record CFGPhi(ArrayList<BasicBlock> blocks, ArrayList<CFGVar> varVersions) implements CFGExpr {
     @Override public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -1383,14 +1406,19 @@ class BasicBlock {
         for(CFGOp o : ops) {
             switch (o) {
                 case CFGAssn a:
-                    if(a.expr() instanceof CFGBinOp || a.expr() instanceof CFGGet || a.expr() instanceof CFGLoad) {
-                        index = vn.indexOf(a.expr());
+                    CFGVar precalc, v = a.var();
+                    CFGExpr expr = a.expr();
+                    if(expr instanceof CFGBinOp || expr instanceof CFGGet || expr instanceof CFGLoad) {
+                        index = vn.indexOf(expr);
                         if (index != -1) {
-                            a.setExpr(names.get(index)); //use numbered value
+                            precalc = names.get(index);
+                            a.setExpr(precalc); //use numbered value
+                            replaceUsages(v, precalc);
+                            //traverse through block & replace exprs containing v with precalc
                         }
                         else {
-                            names.add(a.var());
-                            vn.add(a.expr());
+                            names.add(v);
+                            vn.add(expr);
                         }
                         // alloc is ignored since classes need to be instantiated separately
                         // call is ignored since side effects exist
@@ -1403,6 +1431,26 @@ class BasicBlock {
                     break;
             }
         }
+    }
+
+    //replace usages of the CFGVar old with new (in expressions)
+    public void replaceUsages(CFGVar oldVar, CFGVar newVar) {
+        for(CFGOp o : ops) {
+            switch (o) {
+                case CFGAssn a:
+                    
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // TODO Auto-generated method stub
+    }
+    
+    //replace usages of oldVar with newVar in the expression e
+    public void replaceUsagesExpr(CFGExpr e, CFGVar oldVar, CFGVar newVar) {
+        
     }
 
     public void addPhi(CFGVar v) {
