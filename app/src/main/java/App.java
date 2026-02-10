@@ -234,7 +234,7 @@ sealed interface Expression
 }
 record ThisExpr() implements Expression {}
 record Constant(long value) implements Expression {}
-record Binop(Expression lhs, String op, Expression rhs) implements Expression { public boolean isBool() {return op.equals("==") || op.equals(">") || op.equals("<") || op.equals("<=") || op.equals(">="); }}
+record Binop(Expression lhs, String op, Expression rhs) implements Expression { public boolean isBool() {return op.equals("==") || op.equals("!=") || op.equals(">") || op.equals("<") || op.equals("<=") || op.equals(">="); }}
 record MethodCall(Expression base, String methodname, List<Expression> args) implements Expression {}
 record FieldRead(Expression base, String fieldname) implements Expression {}
 record ClassRef(String classname) implements Expression {}
@@ -1917,6 +1917,7 @@ class BasicBlock {
                         case "<=": rslt = lprim.value()<=rprim.value() ? 1 : 0; break;
                         case ">=": rslt = lprim.value()>=rprim.value() ? 1 : 0; break;
                         case "==": rslt = lprim.value()==rprim.value() ? 1 : 0; break;
+                        case "!=": rslt = lprim.value()!=rprim.value() ? 1 : 0; break;
                         default: //should be unreachable
                             rslt = 0;
                     }

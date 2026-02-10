@@ -1,0 +1,271 @@
+data:
+global array vtblListNode: { getNextListNode, getValListNode, 0, 0, 0 }
+global array fieldsListNode: { 2, 3, 0 }
+global array vtblStack: { 0, 0, pushStack, popStack, 0 }
+global array fieldsStack: { 0, 0, 2 }
+global array vtblStacker: { 0, 0, 0, 0, doStacker }
+global array fieldsStacker: { 0, 0, 0 }
+code:
+
+getNextListNode(%this):
+	%0 = %this + 8
+	%1 = load(%0)
+	%2 = getelt(%1, 1)
+	if %2 then getNextListNode1 else NoSuchField0
+NoSuchField0:
+	fail NoSuchField
+getNextListNode1:
+	%3 = getelt(%this, %2)
+	ret %3
+getValListNode(%this):
+	%0 = %this + 8
+	%1 = load(%0)
+	%2 = getelt(%1, 0)
+	if %2 then getValListNode1 else NoSuchField1
+NoSuchField1:
+	fail NoSuchField
+getValListNode1:
+	%3 = getelt(%this, %2)
+	ret %3
+
+pushStack(%this, %v):
+	%0 = alloc(4)
+	store(%0, @vtblListNode)
+	%1 = %0 + 8
+	store(%1, @fieldsListNode)
+	%tmp = %0
+	%2 = %tmp & 1
+	if %2 then NotAPointer0 else pushStack1
+NotAPointer0:
+	fail NotAPointer
+pushStack1:
+	%3 = %tmp + 8
+	%4 = load(%3)
+	%5 = getelt(%4, 0)
+	if %5 then pushStack2 else NoSuchField2
+NoSuchField2:
+	fail NoSuchField
+pushStack2:
+	setelt(%tmp, %5, %v)
+	%6 = %this + 8
+	%7 = load(%6)
+	%8 = getelt(%7, 2)
+	if %8 then pushStack3 else NoSuchField3
+NoSuchField3:
+	fail NoSuchField
+pushStack3:
+	%9 = getelt(%this, %8)
+	%10 = %tmp & 1
+	if %10 then NotAPointer1 else pushStack4
+NotAPointer1:
+	fail NotAPointer
+pushStack4:
+	%11 = %tmp + 8
+	%12 = load(%11)
+	%13 = getelt(%12, 1)
+	if %13 then pushStack5 else NoSuchField4
+NoSuchField4:
+	fail NoSuchField
+pushStack5:
+	setelt(%tmp, %13, %9)
+	%14 = %this + 8
+	%15 = load(%14)
+	%16 = getelt(%15, 2)
+	if %16 then pushStack6 else NoSuchField5
+NoSuchField5:
+	fail NoSuchField
+pushStack6:
+	setelt(%this, %16, %tmp)
+	%17 = 0 << 1
+	%18 = %17 + 1
+	ret %18
+popStack(%this):
+	%0 = %this + 8
+	%1 = load(%0)
+	%2 = getelt(%1, 2)
+	if %2 then popStack1 else NoSuchField6
+NoSuchField6:
+	fail NoSuchField
+popStack1:
+	%3 = getelt(%this, %2)
+	%4 = %3 - 1
+	%5 = %4 >> 1
+	%6 = %5 == 0
+	if %6 then popStack2 else popStack3
+popStack2:
+	%7 = 0 << 1
+	%8 = %7 + 1
+	ret %8
+popStack3:
+	%9 = %this + 8
+	%10 = load(%9)
+	%11 = getelt(%10, 2)
+	if %11 then popStack4 else NoSuchField7
+NoSuchField7:
+	fail NoSuchField
+popStack4:
+	%12 = getelt(%this, %11)
+	%head = %12
+	%13 = %head & 1
+	if %13 then NotAPointer2 else popStack5
+NotAPointer2:
+	fail NotAPointer
+popStack5:
+	%14 = load(%head)
+	%15 = getelt(%14, 1)
+	if %15 then popStack6 else NoSuchMethod0
+NoSuchMethod0:
+	fail NoSuchMethod
+popStack6:
+	%16 = call(%15, %head)
+	%tmp = %16
+	%17 = %head & 1
+	if %17 then NotAPointer3 else popStack7
+NotAPointer3:
+	fail NotAPointer
+popStack7:
+	%18 = load(%head)
+	%19 = getelt(%18, 0)
+	if %19 then popStack8 else NoSuchMethod1
+NoSuchMethod1:
+	fail NoSuchMethod
+popStack8:
+	%20 = call(%19, %head)
+	%21 = %this + 8
+	%22 = load(%21)
+	%23 = getelt(%22, 2)
+	if %23 then popStack9 else NoSuchField8
+NoSuchField8:
+	fail NoSuchField
+popStack9:
+	setelt(%this, %23, %20)
+	ret %tmp
+
+doStacker(%this, %stk):
+	%0 = 20 << 1
+	%x = %0 + 1
+	jump doStacker1
+doStacker1:
+	%1 = %x - 1
+	%2 = %1 >> 1
+	%3 = %2 > 0
+	if %3 then doStacker2 else doStacker6
+doStacker2:
+	%4 = %stk & 1
+	if %4 then NotAPointer4 else doStacker3
+NotAPointer4:
+	fail NotAPointer
+doStacker3:
+	%5 = load(%stk)
+	%6 = getelt(%5, 2)
+	if %6 then doStacker4 else NoSuchMethod2
+NoSuchMethod2:
+	fail NoSuchMethod
+doStacker4:
+	%7 = call(%6, %stk, %x)
+	%8 = %7
+	%9 = %x & 1
+	if %9 then doStacker5 else NotANumber0
+NotANumber0:
+	fail NotANumber
+doStacker5:
+	%10 = %x - 1
+	%11 = %10 >> 1
+	%12 = %11 - 1
+	%13 = %12 << 1
+	%14 = %13 + 1
+	%x = %14
+	jump doStacker1
+doStacker6:
+	%15 = %stk & 1
+	if %15 then NotAPointer5 else doStacker7
+NotAPointer5:
+	fail NotAPointer
+doStacker7:
+	%16 = load(%stk)
+	%17 = getelt(%16, 3)
+	if %17 then doStacker8 else NoSuchMethod3
+NoSuchMethod3:
+	fail NoSuchMethod
+doStacker8:
+	%18 = call(%17, %stk)
+	%v = %18
+	jump doStacker9
+doStacker9:
+	%19 = %v & 1
+	if %19 then doStacker10 else NotANumber1
+NotANumber1:
+	fail NotANumber
+doStacker10:
+	%20 = %v - 1
+	%21 = %20 >> 1
+	%22 = %21 != 0
+	%23 = %22 << 1
+	%24 = %23 + 1
+	if %24 then doStacker11 else doStacker15
+doStacker11:
+	%25 = %v & 1
+	if %25 then doStacker12 else NotANumber2
+NotANumber2:
+	fail NotANumber
+doStacker12:
+	%26 = %v - 1
+	%27 = %26 >> 1
+	print(%27)
+	%28 = %stk & 1
+	if %28 then NotAPointer6 else doStacker13
+NotAPointer6:
+	fail NotAPointer
+doStacker13:
+	%29 = load(%stk)
+	%30 = getelt(%29, 3)
+	if %30 then doStacker14 else NoSuchMethod4
+NoSuchMethod4:
+	fail NoSuchMethod
+doStacker14:
+	%31 = call(%30, %stk)
+	%v = %31
+	jump doStacker9
+doStacker15:
+	ret 0
+
+main:
+	%0 = alloc(3)
+	store(%0, @vtblStack)
+	%1 = %0 + 8
+	store(%1, @fieldsStack)
+	%stk = %0
+	%2 = %stk & 1
+	if %2 then NotAPointer7 else main1
+NotAPointer7:
+	fail NotAPointer
+main1:
+	%3 = %stk + 8
+	%4 = load(%3)
+	%5 = getelt(%4, 2)
+	if %5 then main2 else NoSuchField9
+NoSuchField9:
+	fail NoSuchField
+main2:
+	%6 = 0 << 1
+	%7 = %6 + 1
+	setelt(%stk, %5, %7)
+	%8 = alloc(2)
+	store(%8, @vtblStacker)
+	%9 = %8 + 8
+	store(%9, @fieldsStacker)
+	%stkr = %8
+	%10 = %stkr & 1
+	if %10 then NotAPointer8 else main3
+NotAPointer8:
+	fail NotAPointer
+main3:
+	%11 = load(%stkr)
+	%12 = getelt(%11, 4)
+	if %12 then main4 else NoSuchMethod5
+NoSuchMethod5:
+	fail NoSuchMethod
+main4:
+	%13 = call(%12, %stkr, %stk)
+	%14 = %13
+	ret 0
