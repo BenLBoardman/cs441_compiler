@@ -1123,6 +1123,8 @@ class CtrlFlowGraph {
         ArrayList <CFGVar> vars = new ArrayList<>(Arrays.asList(args));
         vars.addAll(Arrays.asList(locals));
         BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new ArrayList<>(), tmp, locals, null);
+        for(CFGVar v : locals)
+            start.prependOp(new CFGAssn(v, CFGPrimitive.getPrimitive(0)));
         return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod, vars);
     }
 
@@ -1162,7 +1164,7 @@ class CtrlFlowGraph {
         else
             mkPhis(main.blocks()); // insert temp phis
         for (BasicBlock b : main.blocks())
-            b.toSSA(varMap);
+            b.toSSA(varMap, new HashMap<>(varMap));
 
         for(CFGClass c : classes) {
             for(CFGMethod m : c.methods()) {
@@ -1175,7 +1177,7 @@ class CtrlFlowGraph {
                 else
                     mkPhis(m.blocks()); //insert temp phis
                 for(BasicBlock b : m.blocks())
-                    b.toSSA(varMap);
+                    b.toSSA(varMap, new HashMap<>(varMap));
             }
         }
     }
@@ -1414,7 +1416,7 @@ class BasicBlock {
                         if (index != -1) {
                             precalc = names.get(index);
                             deadOps.add(a);
-                            replaceGlobalUsages(v, precalc);
+                            replaceGlobalUsages(new ArrayList<>(), v, precalc);
                             //traverse through block & replace exprs containing v with precalc
                         }
                         else {
@@ -1430,7 +1432,7 @@ class BasicBlock {
                     }
                     else if(expr instanceof CFGVar) {
                             deadOps.add(a);
-                            replaceGlobalUsages(v, (CFGVar)expr);
+                            replaceGlobalUsages(new ArrayList<>(), v, (CFGVar)expr);
                         }
                     break;
                 default: //non-assignment operations are ignored
@@ -1443,10 +1445,13 @@ class BasicBlock {
     }
 
     //replace ALL usages of oldVar in the method with newVar
-    public void replaceGlobalUsages(CFGVar oldVar, CFGVar newVar) {
+    public void replaceGlobalUsages(ArrayList<BasicBlock> replaced, CFGVar oldVar, CFGVar newVar) {
+        if(replaced.contains(this))
+            return;
+        replaced.add(this);
         this.replaceUsages(oldVar, newVar); //replace all usages in this block
         for(BasicBlock s : this.succs) {
-            s.replaceGlobalUsages(oldVar, newVar); //replace usages in successors
+            s.replaceGlobalUsages(replaced, oldVar, newVar); //replace usages in successors
         }
     }
 
@@ -1800,19 +1805,19 @@ class BasicBlock {
         return;
     }
 
-    public void toSSA(HashMap<String, CFGVar> varMap) {
+    public void toSSA(HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
         if(inSSA)
             return;
         inSSA = true;
         for(CFGAssn phi : phis) {
-            CFGVar oldVer = varMap.get(phi.var().name());
+            CFGVar oldVer = maxVer.get(phi.var().name());
             CFGVar newVer = new CFGVar(oldVer);
             phi.setVar(newVer);
-            varMap.remove(oldVer.name());
-            varMap.put(newVer.name(), newVer);
+            varMap.replace(oldVer.name(), newVer);
+            maxVer.replace(oldVer.name(), newVer);
         }
         for(CFGOp o : ops) {
-            opToSSA(o, varMap);
+            opToSSA(o, varMap, maxVer);
         }
         jumpToSSA(varMap);
         for(BasicBlock succ : succs) { //put all succs of this block that it also dominates into SSA
@@ -1828,12 +1833,12 @@ class BasicBlock {
                 }
             }
             if(inverseDominators.contains(succ)) {
-                succ.toSSA(outVars);
+                succ.toSSA(outVars, maxVer);
             }
         }
     }
 
-    void opToSSA (CFGOp o, HashMap<String, CFGVar> varMap) {
+    void opToSSA (CFGOp o, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
         switch (o) {
             case CFGAssn a:
                 a.setExpr(exprToSSA(a.expr(), varMap));
@@ -1844,8 +1849,8 @@ class BasicBlock {
                     return;
                 CFGVar newVar = new CFGVar(storedVar);
                 a.setVar(newVar);
-                varMap.remove(storedVar.name());
-                varMap.put(newVar.name(), newVar);
+                varMap.replace(storedVar.name(), newVar);
+                maxVer.replace(newVar.name(), newVar);
                 actives.remove(base);
                 actives.add(newVar);
                 break;
@@ -1977,10 +1982,14 @@ class BasicBlock {
         actives = v;
     }
 
-    private void addOp(CFGOp c) {
+    public void addOp(CFGOp c) {
         ops.add(c);
     }
     
+    public void prependOp(CFGOp c) {
+        ops.add(0, c);
+    }
+
     private void addJump(CFGJumpOp j) {
         jmp = j;
     }

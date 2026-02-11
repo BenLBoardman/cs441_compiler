@@ -213,8 +213,8 @@ main8:
 main9:
 	jump main10
 main10:
-	%cnt3 = phi(main9, %cnt2, main15, %41)
-	%26 = %22 - 1
+	%cnt4 = phi(main9, %cnt2, main15, %41)
+	%26 = %cnt4 - 1
 	%27 = %26 >> 1
 	%28 = %27 < 10
 	if %28 then main11 else main16
@@ -239,12 +239,12 @@ main14:
 	%34 = %32 - 1
 	%35 = %34 >> 1
 	print(%35)
-	%36 = %22 & 1
+	%36 = %cnt4 & 1
 	if %36 then main15 else NotANumber3
 NotANumber3:
 	fail NotANumber
 main15:
-	%37 = %22 - 1
+	%37 = %cnt4 - 1
 	%38 = %37 >> 1
 	%39 = %38 + 1
 	%40 = %39 << 1
