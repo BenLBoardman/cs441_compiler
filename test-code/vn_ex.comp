@@ -1,6 +1,7 @@
-main with a, b, c:
+main with a, b:
     a = 1
-    b = 2
-    b = a
-    c = 2
-    b = c
+    b = 1
+    print(b)
+    b=2
+    a = b
+    print(a)

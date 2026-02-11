@@ -1402,6 +1402,7 @@ class BasicBlock {
     public void doLocalValueNumbering() {
         ArrayList<CFGExpr> vn = new ArrayList<>();
         ArrayList<CFGVar> names = new ArrayList<>(); //list of already-defined variables
+        ArrayList<CFGOp> deadOps = new ArrayList<>();
         int index;
         for(CFGOp o : ops) {
             switch (o) {
@@ -1412,7 +1413,7 @@ class BasicBlock {
                         index = vn.indexOf(expr);
                         if (index != -1) {
                             precalc = names.get(index);
-                            ops.remove(a);
+                            deadOps.add(a);
                             replaceGlobalUsages(v, precalc);
                             //traverse through block & replace exprs containing v with precalc
                         }
@@ -1422,14 +1423,22 @@ class BasicBlock {
                         }
                         // alloc is ignored since classes need to be instantiated separately
                         // call is ignored since side effects exist
-                        // primitive and var are ignored since VN would give no improvement
+                        // primitive is ignored since VN would give no improvement
+                        //var is handled separately
                         // phi is ignored since phis shouldn't be changed by VN (phis also won't be in
                         // Ops at this point)
                     }
+                    else if(expr instanceof CFGVar) {
+                            deadOps.add(a);
+                            replaceGlobalUsages(v, (CFGVar)expr);
+                        }
                     break;
                 default: //non-assignment operations are ignored
                     break;
             }
+        }
+        for(CFGOp o : deadOps) {
+            ops.remove(o);
         }
     }
 
@@ -1443,27 +1452,40 @@ class BasicBlock {
 
     //replace usages of the CFGVar old with new (in expressions)
     public void replaceUsages(CFGVar oldVar, CFGVar newVar) {
+        for(CFGAssn p : phis) {
+             p.setExpr(replaceUsagesExpr(p.expr(), oldVar, newVar));
+        }
         for(CFGOp o : ops) {
             switch (o) {
                 //need cases for all op types calling replaceUsagesExpr on their exprs
                 case CFGAssn a:
-                    replaceUsagesExpr(a.expr(), oldVar, newVar);
+                    a.setExpr(replaceUsagesExpr(a.expr(), oldVar, newVar));
                     break;
                 case CFGStore s:
-                    replaceUsagesExpr(s.base(), oldVar, newVar);
-                    replaceUsagesExpr(s.index(), oldVar, newVar);
+                    s.setBase((CFGVar)replaceUsagesExpr(s.base(), oldVar, newVar));
+                    s.setIndex((CFGData)replaceUsagesExpr(s.index(), oldVar, newVar));
                     break;
                 case CFGSet s:
-                    replaceUsagesExpr(s.addr(), oldVar, newVar);
-                    replaceUsagesExpr(s.index(), oldVar, newVar);
-                    replaceUsagesExpr(s.val(), oldVar, newVar);
+                    s.setAddr((CFGVar)replaceUsagesExpr(s.addr(), oldVar, newVar));
+                    s.setIndex((CFGValue)replaceUsagesExpr(s.index(), oldVar, newVar));
+                    s.setVal((CFGData)replaceUsagesExpr(s.val(), oldVar, newVar));
                     break;
                 case CFGPrint p:
-                    replaceUsagesExpr(p.val(), oldVar, newVar);
+                    p.setVal((CFGValue)replaceUsagesExpr(p.val(), oldVar, newVar));
                     break;
                 default:
                     break;
             }
+        }
+        switch (jmp) {
+            case CFGRetOp r:
+                r.setVal((CFGValue)replaceUsagesExpr(r.val(), oldVar, newVar));
+                break;
+            case CFGCondOp c:
+                c.setCond((CFGValue)replaceUsagesExpr(c.cond(), oldVar, newVar));
+                break;
+            default:
+                break;
         }
     }
     
