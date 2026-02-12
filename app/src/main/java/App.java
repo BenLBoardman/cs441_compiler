@@ -1646,7 +1646,6 @@ class BasicBlock {
                     CFGVar assignment = null;
                     String name = a.var().name();
                     CFGVar base = getActive(name);
-                    CFGExpr operand = exprToCFG(blocksInMethod, blockBaseName, a.rhs(), locals, false);
                     if(base != null) {
                         if(base.isThis())
                             throw new IllegalArgumentException("Error: illegal write to \"this\"");
@@ -1658,22 +1657,23 @@ class BasicBlock {
                             currBlock.actives.add(assignment);
                             break;
                         }
-                    } 
-                    CFGExpr tagged = operand;
-                    if(operand instanceof CFGBinOp) {
-                        tmp = new CFGVar(tmp);
-                        tmp.setShouldTag(true);
-                        tagged = tmp;
-                        currBlock.addOp(new CFGAssn((CFGVar)tagged, operand));
-                        
                     }
+                    CFGExpr operand = exprToCFG(assignment, blocksInMethod, blockBaseName, a.rhs(), locals, false);
+                    //CFGExpr tagged = operand;
+                    //if(operand instanceof CFGBinOp) {
+                    //    tmp = new CFGVar(tmp);
+                    //    tmp.setShouldTag(true);
+                    //    tagged = tmp;
+                    //    currBlock.addOp(new CFGAssn((CFGVar)tagged, operand));    
+                    //}
                     if(assignment == null)
                         throw new IllegalArgumentException("Post-Parse error: Cannot initialize variable "+name+" as it was neither passed as an argument nor declared as a local.");
-                    operand = tagInts(assignment, tagged);
+                    if(!(operand instanceof CFGBinOp))
+                        operand = tagInts(assignment, operand);
                     currBlock.addOp(new CFGAssn(assignment, operand));
                     break;
                 case IfElseStmt ie:
-                    cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, ie.cond(), locals, true);
+                    cond = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, ie.cond(), locals, true);
                     if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
                         cond = checkUntagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds);
                     localPreds.add(currBlock);
@@ -1705,7 +1705,7 @@ class BasicBlock {
                     localPreds.clear();
                     return;
                 case IfOnlyStmt io:
-                    cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, io.cond(), locals, true);
+                    cond = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, io.cond(), locals, true);
                     if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
                         cond = checkUntagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds);
                     localPreds.add(currBlock);
@@ -1727,7 +1727,7 @@ class BasicBlock {
                     loopheadStart.setPredsActives(localPreds, actives);
                     localPreds.remove(branchEntryBlock);
                     loopheadStart.setIdentifier(blockBaseName);
-                    cond = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, w.cond(), locals, true);
+                    cond = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, w.cond(), locals, true);
                     if(cond instanceof CFGVar && !((CFGVar)cond).isTmp())
                         cond = checkUntagInt(null, (CFGVar)cond, blocksInMethod, blockBaseName, localPreds);
                     BasicBlock loopheadEnd = currBlock;
@@ -1741,16 +1741,16 @@ class BasicBlock {
                     branchEntryBlock.jmp = new CFGAutoJumpOp(loopheadStart);  
                     return;
                 case PrintStmt p:
-                    CFGValue prt = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, p.str(), locals, true);
+                    CFGValue prt = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, p.str(), locals, true);
                     if(prt instanceof CFGVar) { //need to untag int & make sure we're not dereferencing a ptr
                         prt = checkUntagInt(null, (CFGVar)prt, blocksInMethod, blockBaseName, localPreds);                        
                     }
                     currBlock.addOp(new CFGPrint(prt));
                     break;
                 case FieldWriteStmt f: // can break if writing ptr to field
-                    CFGValue objToStore = (CFGValue)currBlock.exprToCFG(blocksInMethod, blockBaseName, f.rhs(), locals, true); //evaluate rhs first
+                    CFGValue objToStore = (CFGValue)currBlock.exprToCFG(null, blocksInMethod, blockBaseName, f.rhs(), locals, true); //evaluate rhs first
                     //can safely cast obj since it is known to be a var identifier by tokenizer
-                    CFGVar obj = (CFGVar)exprToCFG(blocksInMethod, blockBaseName, f.base(), locals, true);
+                    CFGVar obj = (CFGVar)exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true);
                     int fieldId = CtrlFlowGraph.getFieldId(f.fieldname()); //get index of field in fields arr
                     if(fieldId == -1)
                         throw new IllegalArgumentException("Attempt to modify never-declared field "+f.fieldname());
@@ -1776,13 +1776,13 @@ class BasicBlock {
                     storeVar.setupBlock(blocksInMethod, blockBaseName, stmts, i + 1, locals, jmpBack);
                     return; //rest of method is processed by setupBlock
                 case ReturnStmt r:
-                    CFGValue valToReturn = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, r.output(), locals, true);
+                    CFGValue valToReturn = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, r.output(), locals, true);
                     if(valToReturn instanceof CFGPrimitive)
                         valToReturn = (CFGValue)tagInt(null, valToReturn);
                     currBlock.jmp = new CFGRetOp(valToReturn);
                     break;
                 case VoidStmt v:
-                    CFGValue voidRslt = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, v.rhs(), locals, true);
+                    CFGValue voidRslt = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, v.rhs(), locals, true);
                     tmp = new CFGVar(tmp);
                     currBlock.addOp(new CFGAssn(tmp, voidRslt));
                     break;
@@ -2100,7 +2100,7 @@ class BasicBlock {
     }
 
     //convert a potentially complex CFG expr into a series of statements
-    public CFGExpr exprToCFG(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, Expression expr, CFGVar[] locals, boolean requireVal) {
+    public CFGExpr exprToCFG(CFGVar assn, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, Expression expr, CFGVar[] locals, boolean requireVal) {
         ArrayList<BasicBlock> localPreds = new ArrayList<>();
         BasicBlock badFieldBlock, badMethodBlock;
         CFGExpr out;
@@ -2114,8 +2114,8 @@ class BasicBlock {
                 return tmpVar;
             case Binop b:
                 CFGExpr lhs, rhs;
-                lhs = exprToCFG(blocksInMethod, blockBaseName, b.lhs(), locals, true); 
-                rhs = exprToCFG(blocksInMethod, blockBaseName, b.rhs(), locals, true);
+                lhs = exprToCFG(null, blocksInMethod, blockBaseName, b.lhs(), locals, true); 
+                rhs = exprToCFG(null, blocksInMethod, blockBaseName, b.rhs(), locals, true);
                 if(lhs instanceof CFGPrimitive && rhs instanceof CFGPrimitive) { //optimize out double-constant binops
                     CFGPrimitive lprim = (CFGPrimitive)lhs;
                     CFGPrimitive rprim = (CFGPrimitive)rhs;
@@ -2167,18 +2167,21 @@ class BasicBlock {
                     tmp = new CFGVar(tmp);
                     CFGVar pretag = tmp;
                     currBlock.addOp(new CFGAssn(pretag, out));
-                    out = tagInt(null, pretag);
+                    out = tagInt(assn, pretag);
                 }
                 break;
             case ClassRef c: //used for class reference in a complex expression, so we need to return an anonymous(temp) value
                 CFGClass classData = CtrlFlowGraph.findClass(c.classname());
+                CFGVar cRef = assn;
                 if(classData == null)
                     throw new IllegalArgumentException("Class "+c.classname()+" is undefined");
-                tmp = new CFGVar(tmp);
-                CFGVar cRef = tmp;
-                actives.add(tmp);
-                currBlock.addOp(new CFGAssn(tmp, new CFGAlloc(CFGPrimitive.getPrimitive(classData.numFields()+2)))); //alloc vtable, field map, fields
-                currBlock.addOp(new CFGStore(tmp, classData.vtable()));
+                if(cRef == null) {
+                    tmp = new CFGVar(tmp);
+                    cRef = tmp;
+                    actives.add(tmp);
+                }
+                currBlock.addOp(new CFGAssn(cRef, new CFGAlloc(CFGPrimitive.getPrimitive(classData.numFields()+2)))); //alloc vtable, field map, fields
+                currBlock.addOp(new CFGStore(cRef, classData.vtable()));
                 tmp = new CFGVar(tmp);
                 currBlock.addOp(new CFGAssn(tmp, new CFGBinOp(cRef, "+", CFGPrimitive.getPrimitive(8))));
                 currBlock.addOp(new CFGStore(tmp, classData.fields()));
@@ -2188,7 +2191,7 @@ class BasicBlock {
                 int expectedFieldId = CtrlFlowGraph.getFieldId(f.fieldname());
                 if(expectedFieldId == -1)
                     throw new IllegalArgumentException("Code attempts to read from never-defined field "+f.fieldname());
-                CFGVar obj = (CFGVar)exprToCFG(blocksInMethod, blockBaseName, f.base(), locals, true);
+                CFGVar obj = (CFGVar)exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true);
                 genPtrTagChk(obj, blocksInMethod, blockBaseName, localPreds); //gen tag check for obj
                 BasicBlock getFieldId = currBlock;
                 tmp = new CFGVar(tmp);
@@ -2216,7 +2219,7 @@ class BasicBlock {
                 int methodId = CtrlFlowGraph.getMethodId(m.methodname());
                 if(methodId == -1)
                     throw new IllegalArgumentException("Attempt to call nonexistent method"+m.methodname());
-                obj = (CFGVar)exprToCFG(blocksInMethod, blockBaseName, m.base(), locals, true);
+                obj = (CFGVar)exprToCFG(null, blocksInMethod, blockBaseName, m.base(), locals, true);
                 genPtrTagChk(obj, blocksInMethod, blockBaseName, localPreds); //gen tag check for obj
                 BasicBlock getMethodId = currBlock;
                 //load vtable, find method
@@ -2237,7 +2240,7 @@ class BasicBlock {
                 CFGValue[] args = new CFGValue[m.args().size()];
                 for(int i = 0; i < args.length; i++) {
                     Expression e = m.args().get(i);
-                    args[i] = (CFGValue)exprToCFG(blocksInMethod, blockBaseName, e, locals, true);
+                    args[i] = (CFGValue)exprToCFG(null, blocksInMethod, blockBaseName, e, locals, true);
                     if(args[i] instanceof CFGPrimitive)
                         args[i] = (CFGValue)tagInt(null, args[i]);
                 }

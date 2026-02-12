@@ -32,19 +32,20 @@ pushStack(%this, %v):
 	store(%0, @vtblListNode)
 	%1 = %0 + 8
 	store(%1, @fieldsListNode)
-	%2 = %0 & 1
+	%tmp1 = %0
+	%2 = %tmp1 & 1
 	if %2 then NotAPointer0 else pushStack1
 NotAPointer0:
 	fail NotAPointer
 pushStack1:
-	%3 = %0 + 8
+	%3 = %tmp1 + 8
 	%4 = load(%3)
 	%5 = getelt(%4, 0)
 	if %5 then pushStack2 else NoSuchField2
 NoSuchField2:
 	fail NoSuchField
 pushStack2:
-	setelt(%0, %5, %v)
+	setelt(%tmp1, %5, %v)
 	%6 = %this + 8
 	%7 = load(%6)
 	%8 = getelt(%7, 2)
@@ -53,19 +54,19 @@ NoSuchField3:
 	fail NoSuchField
 pushStack3:
 	%9 = getelt(%this, %8)
-	%10 = %0 & 1
+	%10 = %tmp1 & 1
 	if %10 then NotAPointer1 else pushStack4
 NotAPointer1:
 	fail NotAPointer
 pushStack4:
-	%11 = %0 + 8
+	%11 = %tmp1 + 8
 	%12 = load(%11)
 	%13 = getelt(%12, 1)
 	if %13 then pushStack5 else NoSuchField4
 NoSuchField4:
 	fail NoSuchField
 pushStack5:
-	setelt(%0, %13, %9)
+	setelt(%tmp1, %13, %9)
 	%14 = %this + 8
 	%15 = load(%14)
 	%16 = getelt(%15, 2)
@@ -73,7 +74,7 @@ pushStack5:
 NoSuchField5:
 	fail NoSuchField
 pushStack6:
-	setelt(%this, %16, %0)
+	setelt(%this, %16, %tmp1)
 	%17 = 0 << 1
 	%18 = %17 + 1
 	ret %18
@@ -116,6 +117,7 @@ NoSuchMethod0:
 	fail NoSuchMethod
 popStack6:
 	%16 = call(%15, %12)
+	%tmp1 = %16
 	%17 = %this + 8
 	%18 = load(%17)
 	%19 = getelt(%18, 2)
@@ -144,7 +146,7 @@ NoSuchField9:
 	fail NoSuchField
 popStack10:
 	setelt(%this, %27, %24)
-	ret %16
+	ret %tmp1
 
 main:
 	%cnt0 = 0
@@ -154,12 +156,13 @@ main:
 	store(%0, @vtblStack)
 	%1 = %0 + 8
 	store(%1, @fieldsStack)
-	%2 = %0 & 1
+	%stk1 = %0
+	%2 = %stk1 & 1
 	if %2 then NotAPointer4 else main1
 NotAPointer4:
 	fail NotAPointer
 main1:
-	%3 = %0 + 8
+	%3 = %stk1 + 8
 	%4 = load(%3)
 	%5 = getelt(%4, 2)
 	if %5 then main2 else NoSuchField10
@@ -168,29 +171,30 @@ NoSuchField10:
 main2:
 	%6 = 0 << 1
 	%7 = %6 + 1
-	setelt(%0, %5, %7)
+	setelt(%stk1, %5, %7)
 	%8 = 10 << 1
 	%cnt1 = %8 + 1
 	jump main3
 main3:
-	%cnt2 = phi(main2, %cnt1, main8, %22)
+	%cnt2 = phi(main2, %cnt1, main8, %cnt3)
 	%9 = %cnt2 - 1
 	%10 = %9 >> 1
 	%11 = %10 > 0
 	if %11 then main4 else main9
 main4:
-	%12 = %0 & 1
+	%12 = %stk1 & 1
 	if %12 then NotAPointer5 else main5
 NotAPointer5:
 	fail NotAPointer
 main5:
-	%13 = load(%0)
+	%13 = load(%stk1)
 	%14 = getelt(%13, 2)
 	if %14 then main6 else NoSuchMethod2
 NoSuchMethod2:
 	fail NoSuchMethod
 main6:
-	%15 = call(%14, %0, %cnt2)
+	%15 = call(%14, %stk1, %cnt2)
+	%16 = %15
 	%17 = %cnt2 & 1
 	if %17 then main7 else NotANumber0
 NotANumber0:
@@ -201,36 +205,37 @@ main7:
 	%20 = %19 - 1
 	%21 = %20 << 1
 	%22 = %21 + 1
-	%23 = %22 & 1
+	%cnt3 = %22
+	%23 = %cnt3 & 1
 	if %23 then main8 else NotANumber1
 NotANumber1:
 	fail NotANumber
 main8:
-	%24 = %22 - 1
+	%24 = %cnt3 - 1
 	%25 = %24 >> 1
 	print(%25)
 	jump main3
 main9:
 	jump main10
 main10:
-	%cnt4 = phi(main9, %cnt2, main15, %41)
+	%cnt4 = phi(main9, %cnt2, main15, %cnt5)
 	%26 = %cnt4 - 1
 	%27 = %26 >> 1
 	%28 = %27 < 10
 	if %28 then main11 else main16
 main11:
-	%29 = %0 & 1
+	%29 = %stk1 & 1
 	if %29 then NotAPointer6 else main12
 NotAPointer6:
 	fail NotAPointer
 main12:
-	%30 = load(%0)
+	%30 = load(%stk1)
 	%31 = getelt(%30, 3)
 	if %31 then main13 else NoSuchMethod3
 NoSuchMethod3:
 	fail NoSuchMethod
 main13:
-	%32 = call(%31, %0)
+	%32 = call(%31, %stk1)
 	%33 = %32 & 1
 	if %33 then main14 else NotANumber2
 NotANumber2:
@@ -249,6 +254,7 @@ main15:
 	%39 = %38 + 1
 	%40 = %39 << 1
 	%41 = %40 + 1
+	%cnt5 = %41
 	jump main10
 main16:
 	ret 0
