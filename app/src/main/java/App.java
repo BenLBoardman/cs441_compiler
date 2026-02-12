@@ -1102,7 +1102,7 @@ class CtrlFlowGraph {
     
     private CFGMethod methodToCfg(Method m, String classname, boolean isMain) {
         CFGVar tmp = new CFGVar("");
-        ArrayList<CFGVar> activeVars = new ArrayList<>();
+        HashSet<CFGVar> activeVars = new HashSet<>();
         CFGVar[] args = new CFGVar[0];
         if (!isMain) {
             args = new CFGVar[m.args().size()+1];
@@ -1123,8 +1123,6 @@ class CtrlFlowGraph {
         ArrayList <CFGVar> vars = new ArrayList<>(Arrays.asList(args));
         vars.addAll(Arrays.asList(locals));
         BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new ArrayList<>(), tmp, locals, null);
-        for(CFGVar v : locals)
-            start.prependOp(new CFGAssn(v, CFGPrimitive.getPrimitive(0)));
         return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod, vars);
     }
 
@@ -1393,7 +1391,7 @@ class BasicBlock {
     private static BasicBlock currBlock;
 
     private String identifier;
-    private ArrayList<CFGVar> actives;
+    private HashSet<CFGVar> actives;
     private ArrayList<CFGOp> ops;
     private ArrayList <CFGAssn> phis; //phis stored in their own list for simplicity
     
@@ -1562,7 +1560,7 @@ class BasicBlock {
     private static CFGVar tmp;
     private boolean inSSA; //boolean determining if block is already in SSA - used to avoid infinite loops
 
-    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList <Statement> stmts, int startIndex, ArrayList<CFGVar> actives, 
+    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList <Statement> stmts, int startIndex, HashSet<CFGVar> actives, 
         ArrayList<BasicBlock> preds, CFGVar tmp, CFGVar[] locals, BasicBlock jmpBack) {
             this(blocksInMethod, tmp, preds, actives);
             this.setupBlock(blocksInMethod, blockBaseName, stmts, startIndex, locals, jmpBack);
@@ -1581,7 +1579,7 @@ class BasicBlock {
         CtrlFlowGraph.basicBlocks.add(this);
         preds = new ArrayList<>();
         succs = new ArrayList<>();
-        actives = new ArrayList<>();
+        actives = new HashSet<>();
         dominators = new HashSet<>();
 	    inverseDominators = new HashSet<>();
         dominanceFrontier = new HashSet<>();
@@ -1593,7 +1591,7 @@ class BasicBlock {
 
     // create empty basic block with predecessor & active var setup
     // used where basic blocks are built manually (while, method call, field r/w)
-    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, ArrayList<BasicBlock> preds, ArrayList<CFGVar> actives) {
+    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, ArrayList<BasicBlock> preds, HashSet<CFGVar> actives) {
         this(blocksInMethod, tmp);
         setPredsActives(preds, actives);
     }
@@ -1829,7 +1827,12 @@ class BasicBlock {
                 for(int i = 0; i < phiOp.blocks().size(); i++) {
                     if(phiOp.blocks().get(i) == this) {
                         phiOp.varVersions().set(i, updatedVar);
+                        if(updatedVar.version() == -1) {
+                            System.out.println("Error: Variable "+updatedVar.name()+" may be used before being initialized.");
+                            System.exit(1);
+                        }
                     }
+                    
                 }
             }
             if(inverseDominators.contains(succ)) {
@@ -1844,14 +1847,13 @@ class BasicBlock {
                 a.setExpr(exprToSSA(a.expr(), varMap));
                 // do whatever thing needs to be added for exprs
                 CFGVar base = a.var();
-                CFGVar storedVar = varMap.get(a.var().name());
+                CFGVar storedVar = varMap.get(base.name());
                 if (storedVar == null) // assignment to temporary value
                     return;
                 CFGVar newVar = new CFGVar(storedVar);
                 a.setVar(newVar);
                 varMap.replace(storedVar.name(), newVar);
                 maxVer.replace(newVar.name(), newVar);
-                actives.remove(base);
                 actives.add(newVar);
                 break;
             case CFGPrint p:
@@ -1925,7 +1927,7 @@ class BasicBlock {
     }
 
     //sets predecessors and active variable lists of a block
-    private void setPredsActives(ArrayList<BasicBlock> preds, ArrayList<CFGVar> actives) {
+    private void setPredsActives(ArrayList<BasicBlock> preds, HashSet<CFGVar> actives) {
         this.preds.clear();
         this.succs.clear();
         this.actives.clear();
@@ -1969,7 +1971,7 @@ class BasicBlock {
         return sb.toString();
     }
 
-    public ArrayList<CFGVar> getActives() {
+    public HashSet<CFGVar> getActives() {
         return actives;
     }
 
@@ -1978,7 +1980,7 @@ class BasicBlock {
     }
 
     //overwrite existing actives and replace it with v - intended to be use to temporarily pre-initialize in cases where loops are being turned into CFG
-    public void addActives(ArrayList<CFGVar> v) {
+    public void addActives(HashSet<CFGVar> v) {
         actives = v;
     }
 
@@ -2277,6 +2279,7 @@ class BasicBlock {
 
 public class App {
     public static CtrlFlowGraph cfg;
+    static boolean debug = false;
     public static void main(String[] args) {
         if (args.length < 1) {
             System.err.println("Usage: <comp> infile [-o outfile] [args...]");
@@ -2308,6 +2311,9 @@ public class App {
                     nextArg++;
                     outFilePath = args[nextArg];
                     outName = true;
+                    break;
+                case "-d":
+                    debug = true;
                     break;
                 default:
                     System.out.print("Command-line arg "+args[nextArg]+" not recognized");
@@ -2342,5 +2348,10 @@ public class App {
             System.err.println("Cannot write code to file "+outFilePath);
             e.printStackTrace();
         }
+    }
+
+    public static void debug(String... str) {
+        if(debug)
+            System.out.println(str);
     }
 }

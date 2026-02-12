@@ -4,6 +4,8 @@ code:
 main:
 	%0 = 2 << 1
 	%x0 = %0 + 1
+	%1 = 1 << 1
+	%y0 = %1 + 1
 	%2 = %x0 & 1
 	if %2 then main1 else NotANumber0
 NotANumber0:
@@ -11,12 +13,12 @@ NotANumber0:
 main1:
 	%3 = %x0 - 1
 	%4 = %3 >> 1
-	%5 = %x0 & 1
+	%5 = %y0 & 1
 	if %5 then main2 else NotANumber1
 NotANumber1:
 	fail NotANumber
 main2:
-	%6 = %x0 - 1
+	%6 = %y0 - 1
 	%7 = %6 >> 1
 	%8 = %4 + %7
 	%9 = %8 << 1

@@ -6,4 +6,23 @@ main:
 	%a0 = %0 + 1
 	%1 = 1 << 1
 	%b0 = %1 + 1
+	%2 = %b0 & 1
+	if %2 then main1 else NotANumber0
+NotANumber0:
+	fail NotANumber
+main1:
+	%3 = %b0 - 1
+	%4 = %3 >> 1
+	print(%4)
+	%5 = 2 << 1
+	%b1 = %5 + 1
+	%a1 = %b1
+	%6 = %a1 & 1
+	if %6 then main2 else NotANumber1
+NotANumber1:
+	fail NotANumber
+main2:
+	%7 = %a1 - 1
+	%8 = %7 >> 1
+	print(%8)
 	ret 0
