@@ -760,6 +760,56 @@ record CFGBinOp(CFGValue lhs, String op, CFGValue rhs) implements CFGExpr {
         CFGBinOp b = (CFGBinOp)o;
         return this.lhs == b.lhs && this.op == b.op && this.rhs == b.rhs;
     }
+
+    public CFGExpr evalBinOp() {
+        if (lhs instanceof CFGPrimitive && rhs instanceof CFGPrimitive) { // optimize out double-constant binops
+            CFGPrimitive lprim = (CFGPrimitive) lhs;
+            CFGPrimitive rprim = (CFGPrimitive) rhs;
+            long rslt;
+            switch (op) {
+                case "+":
+                    rslt = lprim.value() + rprim.value();
+                    break;
+                case "-":
+                    rslt = lprim.value() - rprim.value();
+                    break;
+                case "*":
+                    rslt = lprim.value() * rprim.value();
+                    break;
+                case "/":
+                    rslt = lprim.value() / rprim.value();
+                    break;
+                case ">":
+                    rslt = lprim.value() > rprim.value() ? 1 : 0;
+                    break;
+                case "<":
+                    rslt = lprim.value() < rprim.value() ? 1 : 0;
+                    break;
+                case "<<":
+                    rslt = lprim.value() << rprim.value();
+                    break;
+                case ">>":
+                    rslt = lprim.value() >> rprim.value();
+                    break;
+                case "<=":
+                    rslt = lprim.value() <= rprim.value() ? 1 : 0;
+                    break;
+                case ">=":
+                    rslt = lprim.value() >= rprim.value() ? 1 : 0;
+                    break;
+                case "==":
+                    rslt = lprim.value() == rprim.value() ? 1 : 0;
+                    break;
+                case "!=":rslt = lprim.value() != rprim.value() ? 1 : 0;
+                    break;
+                case "&": rslt = lprim.value() & rprim.value(); break;
+                default: // should be unreachable
+                    rslt = 0;
+            }
+            return CFGPrimitive.getPrimitive(rslt);
+        }
+        return this;
+    }
 }
 
 record CFGGet(CFGVar arr, CFGValue val) implements CFGExpr {
@@ -810,7 +860,7 @@ record CFGLoad(CFGVar base) implements CFGExpr {
     } 
 }
 
-record CFGPhi(ArrayList<BasicBlock> blocks, ArrayList<CFGVar> varVersions) implements CFGExpr {
+record CFGPhi(ArrayList<BasicBlock> blocks, ArrayList<CFGValue> varVersions) implements CFGExpr {
     @Override public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("phi(");
@@ -1404,46 +1454,51 @@ class BasicBlock {
         ArrayList<CFGVar> names = new ArrayList<>(); //list of already-defined variables
         ArrayList<CFGOp> deadOps = new ArrayList<>();
         int index;
-        for(CFGOp o : ops) {
-            switch (o) {
-                case CFGAssn a:
-                    CFGVar precalc, v = a.var();
-                    CFGExpr expr = a.expr();
-                    if(expr instanceof CFGBinOp || expr instanceof CFGGet || expr instanceof CFGLoad) {
-                        index = vn.indexOf(expr);
-                        if (index != -1) {
-                            precalc = names.get(index);
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (CFGOp o : ops) {
+                switch (o) {
+                    case CFGAssn a:
+                        CFGVar precalc, v = a.var();
+                        CFGExpr expr = a.expr();
+                        if (expr instanceof CFGBinOp) //evaluate binary op (if both primitives) - basically poor-man's constant propagation
+                            expr = ((CFGBinOp) expr).evalBinOp();
+                        a.setExpr(expr);
+                        if (expr instanceof CFGBinOp || expr instanceof CFGGet || expr instanceof CFGLoad) {
+                            index = vn.indexOf(expr);
+                            if (index != -1) {
+                                changed = true;
+                                precalc = names.get(index);
+                                deadOps.add(a);
+                                replaceGlobalUsages(new ArrayList<>(), v, precalc);
+                                // traverse through block & replace exprs containing v with precalc
+                            } else {
+                                names.add(v);
+                                vn.add(expr);
+                            }
+                            // alloc is ignored since classes need to be instantiated separately
+                            // call is ignored since side effects exist
+                            // var & primitive are handled separately
+                            // phi is ignored since phis shouldn't be changed by VN (phis also won't be in
+                            // Ops at this point)
+                        } else if (expr instanceof CFGVar || expr instanceof CFGPrimitive) {
                             deadOps.add(a);
-                            replaceGlobalUsages(new ArrayList<>(), v, precalc);
-                            //traverse through block & replace exprs containing v with precalc
+                            replaceGlobalUsages(new ArrayList<>(), v, (CFGValue) expr);
                         }
-                        else {
-                            names.add(v);
-                            vn.add(expr);
-                        }
-                        // alloc is ignored since classes need to be instantiated separately
-                        // call is ignored since side effects exist
-                        // primitive is ignored since VN would give no improvement
-                        //var is handled separately
-                        // phi is ignored since phis shouldn't be changed by VN (phis also won't be in
-                        // Ops at this point)
-                    }
-                    else if(expr instanceof CFGVar) {
-                            deadOps.add(a);
-                            replaceGlobalUsages(new ArrayList<>(), v, (CFGVar)expr);
-                        }
-                    break;
-                default: //non-assignment operations are ignored
-                    break;
+                        break;
+                    default: // non-assignment operations are ignored
+                        break;
+                }
             }
-        }
-        for(CFGOp o : deadOps) {
-            ops.remove(o);
+            for (CFGOp o : deadOps) {
+                ops.remove(o);
+            }
         }
     }
 
     //replace ALL usages of oldVar in the method with newVar
-    public void replaceGlobalUsages(ArrayList<BasicBlock> replaced, CFGVar oldVar, CFGVar newVar) {
+    public void replaceGlobalUsages(ArrayList<BasicBlock> replaced, CFGVar oldVar, CFGValue newVar) {
         if(replaced.contains(this))
             return;
         replaced.add(this);
@@ -1454,7 +1509,7 @@ class BasicBlock {
     }
 
     //replace usages of the CFGVar old with new (in expressions)
-    public void replaceUsages(CFGVar oldVar, CFGVar newVar) {
+    public void replaceUsages(CFGVar oldVar, CFGValue newVar) {
         for(CFGAssn p : phis) {
              p.setExpr(replaceUsagesExpr(p.expr(), oldVar, newVar));
         }
@@ -1493,28 +1548,28 @@ class BasicBlock {
     }
     
     //replace usages of oldVar with newVar in the expression e
-    public CFGExpr replaceUsagesExpr(CFGExpr e, CFGVar oldVar, CFGVar newVar) {
+    public CFGExpr replaceUsagesExpr(CFGExpr e, CFGVar oldVar, CFGValue newVar) {
         switch(e) {
             case CFGVar v:
                 return v.equals(oldVar) ? newVar : v;
             case CFGBinOp b:
                 return new CFGBinOp(oldVar.equals(b.lhs()) ? newVar : b.lhs(), b.op(), oldVar.equals(b.rhs()) ? newVar : b.rhs());
             case CFGGet g:
-                return new CFGGet(oldVar.equals(g.arr()) ? newVar : g.arr(), oldVar.equals(g.val()) ? newVar : g.val());
+                return new CFGGet(oldVar.equals(g.arr()) ? (CFGVar)newVar : g.arr(), oldVar.equals(g.val()) ? newVar : g.val());
             case CFGLoad l:
-                return new CFGLoad(oldVar.equals(l.base()) ? newVar : l.base());
+                return new CFGLoad(oldVar.equals(l.base()) ? (CFGVar)newVar : l.base());
             case CFGCall c:
                 CFGValue[] newArgs = new CFGValue[c.args().length];
                 for(int i = 0; i < newArgs.length; i++) {
                     CFGValue oldArg = c.args()[i];
                     newArgs[i] = oldVar.equals(oldArg) ? newVar : oldArg;
                 }
-                return new CFGCall(oldVar.equals(c.addr()) ? newVar : c.addr(), 
-                    oldVar.equals(c.receiver()) ? newVar : c.receiver(), newArgs);
+                return new CFGCall(oldVar.equals(c.addr()) ? (CFGVar)newVar : c.addr(), 
+                    oldVar.equals(c.receiver()) ? (CFGVar)newVar : c.receiver(), newArgs);
             case CFGPhi p:
-                ArrayList<CFGVar> vars = p.varVersions();
+                ArrayList<CFGValue> vars = p.varVersions();
                 for(int i = 0; i < vars.size(); i++) {
-                    CFGVar var = vars.get(i);
+                    CFGValue var = vars.get(i);
                     vars.set(i, oldVar.equals(var) ? newVar : var);
                 }
                 return p;
@@ -1525,7 +1580,7 @@ class BasicBlock {
     }
 
     public void addPhi(CFGVar v) {
-        ArrayList<CFGVar> vars = new ArrayList<>();
+        ArrayList<CFGValue> vars = new ArrayList<>();
         ArrayList<BasicBlock> blocks = new ArrayList<>();
         for(BasicBlock p : preds) {
             vars.add(v);
