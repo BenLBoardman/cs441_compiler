@@ -34,8 +34,6 @@ main with stk, tmp, cnt:
         print(cnt)
     }
     while (cnt < 10): {
-        tmp = (cnt - 1)
-        print(tmp)
         print(^stk.pop())
         cnt = (cnt + 1)
     }

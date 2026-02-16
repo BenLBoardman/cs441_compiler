@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 import java.nio.file.Path;
@@ -917,6 +918,12 @@ non-sealed class CFGCondOp implements CFGJumpOp
     public CFGValue cond() {
         return cond;
     }
+    public BasicBlock yes() {
+        return yes;
+    }
+    public BasicBlock no() {
+        return no;
+    }
 
     public void setCond(CFGValue cond) {
         this.cond = cond;
@@ -1047,6 +1054,56 @@ record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock addr, A
     public void addVar(CFGVar v) {
         vars.add(v);
     }
+
+    public void condenseBlocks() {
+        boolean changed = true;
+        while(changed) {
+            changed = false;
+            for(BasicBlock b : blocks) {
+                switch (b.getJmp()) {
+                    case CFGAutoJumpOp a:
+                        BasicBlock succ = a.target();
+                        HashSet<BasicBlock> targetSuccs = succ.getSuccs();
+                        if(succ.getPreds().size() == 1) { //b is only prececessor of succ
+                            b.addOps(succ.getOps());
+                            b.setJmp(succ.getJmp());
+                            succ.setJmp(new CFGRetOp(CFGPrimitive.getPrimitive(0)));
+                            b.removeSucc(succ);
+                            for(BasicBlock s : ((HashSet<BasicBlock>)targetSuccs.clone())) {
+                                s.replacePred(succ, b);
+                            }
+                            changed = true;
+                        }
+                        break;
+                    case CFGCondOp c:
+                        CFGExpr cond = c.cond();
+                        if(cond instanceof CFGPrimitive) { //if will always evaluate to same value
+                            changed = true;
+                            long val = ((CFGPrimitive)cond).value();
+                            BasicBlock target = val > 0 ? c.yes() : c.no(); //branch always taken
+                            BasicBlock fakeBranch = val < 0 ? c.yes() : c.no(); //branch never taken
+                            b.setJmp(new CFGAutoJumpOp(target));
+                            b.removeSucc(fakeBranch);
+                        }
+                        break;
+                    default: //return is unaffected
+                        break;
+                }
+            }
+            App.debug(this.toString());
+            HashSet<BasicBlock> deadBlocks = new HashSet<>(); 
+           for(BasicBlock b : blocks) {
+                if(b.getPreds().size() == 0 && b != blocks.get(0)) {
+                    deadBlocks.add(b);
+                    
+                    Iterator<BasicBlock> succIter = b.getSuccs().iterator();
+                    for(int i = b.getSuccs().size() - 1; i >= 0; i--)
+                        b.removeSucc(succIter.next());
+                }
+            }
+            blocks.removeAll(deadBlocks);
+        }
+    }
 }
 
 record CFGArray(String name, Object[] elems) implements CFGData { int size()  {return this.elems.length; } @Override public String toString() { return "@"+name;} }
@@ -1172,7 +1229,7 @@ class CtrlFlowGraph {
         ArrayList<BasicBlock> blocksInMethod = new ArrayList<>();
         ArrayList <CFGVar> vars = new ArrayList<>(Arrays.asList(args));
         vars.addAll(Arrays.asList(locals));
-        BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new ArrayList<>(), tmp, locals, null);
+        BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new HashSet<>(), tmp, locals, null);
         return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod, vars);
     }
 
@@ -1402,7 +1459,15 @@ class CtrlFlowGraph {
             for(CFGMethod m : c.methods())
                 for(BasicBlock b : m.blocks())
                     b.doLocalValueNumbering();
-    }    
+    }
+    
+    public void cleanBlocks() {
+        main.condenseBlocks();
+
+        for(CFGClass c : classes)
+            for(CFGMethod m : c.methods())
+                m.condenseBlocks();
+    }
 }
 
 record DataBlock(ArrayList<CFGArray> data){
@@ -1445,10 +1510,49 @@ class BasicBlock {
     private ArrayList<CFGOp> ops;
     private ArrayList <CFGAssn> phis; //phis stored in their own list for simplicity
     
+    private CFGJumpOp jmp;
+    private HashSet<BasicBlock> preds;
+    private HashSet<BasicBlock> succs;
+    
+    
+    public HashSet<BasicBlock> dominators; //blocks that dominate this block
+    public HashSet<BasicBlock> inverseDominators; //blocks this block dominates
+    public BasicBlock immediateDominator; //the "nearest" dominator in the CFG
+    public HashSet<BasicBlock> dominanceFrontier; //blocks that *almost* dominate this block
+
+    private static CFGVar tmp;
+    private boolean inSSA; //boolean determining if block is already in SSA - used to avoid infinite loops
+
+
     public ArrayList<CFGOp> getOps() {
         return ops;
     }
     
+    //replace predecessor "a" with "b"
+    public void replacePred(BasicBlock a, BasicBlock b) {
+       preds.remove(a);
+       preds.add(b);
+       a.succs.remove(this);
+       b.succs.add(this);
+    }
+
+    public void setJmp(CFGJumpOp jmp) {
+        this.jmp = jmp;
+    }
+
+    public void addOps(ArrayList<CFGOp> ops) {
+        this.ops.addAll(ops);
+    }
+
+    public void removeSucc(BasicBlock s) {
+        succs.remove(s);
+        s.preds.remove(this);
+    }
+
+    public CFGJumpOp getJmp() {
+       return jmp;
+    }
+
     public void doLocalValueNumbering() {
         ArrayList<CFGExpr> vn = new ArrayList<>();
         ArrayList<CFGVar> names = new ArrayList<>(); //list of already-defined variables
@@ -1602,26 +1706,13 @@ class BasicBlock {
         return phis;
     }
 
-    private CFGJumpOp jmp;
-    private ArrayList<BasicBlock> preds;
-    private ArrayList<BasicBlock> succs;
-    
-    
-    public HashSet<BasicBlock> dominators; //blocks that dominate this block
-    public HashSet<BasicBlock> inverseDominators; //blocks this block dominates
-    public BasicBlock immediateDominator; //the "nearest" dominator in the CFG
-    public HashSet<BasicBlock> dominanceFrontier; //blocks that *almost* dominate this block
-
-    private static CFGVar tmp;
-    private boolean inSSA; //boolean determining if block is already in SSA - used to avoid infinite loops
-
     public BasicBlock(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList <Statement> stmts, int startIndex, HashSet<CFGVar> actives, 
-        ArrayList<BasicBlock> preds, CFGVar tmp, CFGVar[] locals, BasicBlock jmpBack) {
+        HashSet<BasicBlock> preds, CFGVar tmp, CFGVar[] locals, BasicBlock jmpBack) {
             this(blocksInMethod, tmp, preds, actives);
             this.setupBlock(blocksInMethod, blockBaseName, stmts, startIndex, locals, jmpBack);
         }
     
-    public ArrayList<BasicBlock> getSuccs() {
+    public HashSet<BasicBlock> getSuccs() {
         return succs;
     }
 
@@ -1632,8 +1723,8 @@ class BasicBlock {
         currBlock = this;
         blocksInMethod.add(this);
         CtrlFlowGraph.basicBlocks.add(this);
-        preds = new ArrayList<>();
-        succs = new ArrayList<>();
+        preds = new HashSet<>();
+        succs = new HashSet<>();
         actives = new HashSet<>();
         dominators = new HashSet<>();
 	    inverseDominators = new HashSet<>();
@@ -1646,15 +1737,15 @@ class BasicBlock {
 
     // create empty basic block with predecessor & active var setup
     // used where basic blocks are built manually (while, method call, field r/w)
-    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, ArrayList<BasicBlock> preds, HashSet<CFGVar> actives) {
+    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, HashSet<BasicBlock> preds, HashSet<CFGVar> actives) {
         this(blocksInMethod, tmp);
         setPredsActives(preds, actives);
     }
 
     //create a fail block
-    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, CFGFailOpt failType, ArrayList<BasicBlock> preds) {
+    public BasicBlock(ArrayList<BasicBlock> blocksInMethod, CFGVar tmp, CFGFailOpt failType, HashSet<BasicBlock> preds) {
         this(blocksInMethod, tmp);
-        this.preds = new ArrayList<>(preds);
+        this.preds = new HashSet<>(preds);
         for(BasicBlock p : this.preds) {
             p.succs.add(this);
         }
@@ -1685,7 +1776,7 @@ class BasicBlock {
         CFGVar[] locals, BasicBlock jmpBack) {
         if(identifier == null || identifier.equals(""))
             setIdentifier(blockBaseName);
-        ArrayList<BasicBlock> localPreds = new ArrayList<>();
+        HashSet<BasicBlock> localPreds = new HashSet<>();
         //make phis
         for(BasicBlock p : this.preds) {
             p.addSucc(this);
@@ -1982,7 +2073,7 @@ class BasicBlock {
     }
 
     //sets predecessors and active variable lists of a block
-    private void setPredsActives(ArrayList<BasicBlock> preds, HashSet<CFGVar> actives) {
+    private void setPredsActives(HashSet<BasicBlock> preds, HashSet<CFGVar> actives) {
         this.preds.clear();
         this.succs.clear();
         this.actives.clear();
@@ -1990,7 +2081,7 @@ class BasicBlock {
         if(preds.size() == 0) //if this is the starting pt of the method
             this.actives.addAll(actives);
         else
-            this.actives.addAll(preds.get(0).getActives());
+            this.actives.addAll(preds.iterator().next().getActives());
         for(BasicBlock p : this.preds) {
             p.succs.add(this);
         }
@@ -2061,7 +2152,7 @@ class BasicBlock {
         }
     }
 
-    public ArrayList<BasicBlock> getPreds() {
+    public HashSet<BasicBlock> getPreds() {
         return this.preds;
     }
 
@@ -2079,8 +2170,8 @@ class BasicBlock {
     }
 
     //generate a pointer tag check for the variable var
-    public void genPtrTagChk(CFGVar obj, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<BasicBlock> preds) {
-        ArrayList<BasicBlock> localPreds = new ArrayList<>(preds);
+    public void genPtrTagChk(CFGVar obj, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, HashSet<BasicBlock> preds) {
+        HashSet<BasicBlock> localPreds = new HashSet<>(preds);
         if(obj.isThis())
             return; //PEEPHOLE OPT - DONT GENERATE TAG CHECKS FOR THIS
         tmp = new CFGVar(tmp);
@@ -2094,7 +2185,7 @@ class BasicBlock {
         isPtr.setIdentifier(blockBaseName);
     }
 
-    public void genIntTagChk(CFGVar var, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<BasicBlock> localPreds){
+    public void genIntTagChk(CFGVar var, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, HashSet<BasicBlock> localPreds){
         if(var.isThis())
             return; //PEEPHOLE OPT - DONT GENERATE TAG CHECKS FOR THIS
         tmp = new CFGVar(tmp);
@@ -2138,7 +2229,7 @@ class BasicBlock {
 
     //given an int var in, generate code to tag check and untag the int, returning the untagged variable out
     //if out is null, return a new temp - otherwise, assign the value to out and return it
-    public CFGVar checkUntagInt(CFGVar out, CFGVar in, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<BasicBlock> localPreds) {
+    public CFGVar checkUntagInt(CFGVar out, CFGVar in, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, HashSet<BasicBlock> localPreds) {
         genIntTagChk(in, blocksInMethod, blockBaseName, localPreds);
         localPreds.clear();
         return doUntag(out, in);
@@ -2158,7 +2249,7 @@ class BasicBlock {
 
     //convert a potentially complex CFG expr into a series of statements
     public CFGExpr exprToCFG(CFGVar assn, ArrayList<BasicBlock> blocksInMethod, String blockBaseName, Expression expr, CFGVar[] locals, boolean requireVal) {
-        ArrayList<BasicBlock> localPreds = new ArrayList<>();
+        HashSet<BasicBlock> localPreds = new HashSet<>();
         BasicBlock badFieldBlock, badMethodBlock;
         CFGExpr out;
         switch (expr) {
@@ -2393,6 +2484,7 @@ public class App {
             cfg.toSSA(simple);
         if(vn)
             cfg.localValueNumber();
+        cfg.cleanBlocks();
         if(outFilePath == "") {
             System.out.println(cfg);
             return;

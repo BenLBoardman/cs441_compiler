@@ -73,9 +73,7 @@ NoSuchField5:
 	fail NoSuchField
 pushStack6:
 	setelt(%this, %15, %tmp0)
-	%16 = 0 << 1
-	%17 = %16 + 1
-	ret %17
+	ret 1
 popStack(%this):
 	%0 = %this + 8
 	%1 = load(%0)
@@ -90,9 +88,7 @@ popStack1:
 	%6 = %5 == 0
 	if %6 then popStack2 else popStack3
 popStack2:
-	%7 = 0 << 1
-	%8 = %7 + 1
-	ret %8
+	ret 1
 popStack3:
 	%9 = %this + 8
 	%10 = load(%9)
@@ -161,14 +157,10 @@ main1:
 NoSuchField10:
 	fail NoSuchField
 main2:
-	%5 = 0 << 1
-	%6 = %5 + 1
-	setelt(%stk0, %4, %6)
-	%7 = 10 << 1
-	%cnt0 = %7 + 1
+	setelt(%stk0, %4, 1)
 	jump main3
 main3:
-	%cnt1 = phi(main2, %cnt0, main8, %cnt2)
+	%cnt1 = phi(main8, %cnt2, main2, 21)
 	%8 = %cnt1 - 1
 	%9 = %8 >> 1
 	%10 = %9 > 0
@@ -208,61 +200,42 @@ main8:
 main9:
 	jump main10
 main10:
-	%tmp0 = phi(main17, %tmp1)
-	%cnt3 = phi(main9, %cnt1, main17, %cnt4)
+	%cnt3 = phi(main15, %cnt4, main9, %cnt1)
 	%24 = %cnt3 - 1
 	%25 = %24 >> 1
 	%26 = %25 < 10
-	if %26 then main11 else main18
+	if %26 then main11 else main16
 main11:
-	%27 = %cnt3 & 1
-	if %27 then main12 else NotANumber2
-NotANumber2:
-	fail NotANumber
-main12:
-	%28 = %cnt3 - 1
-	%29 = %28 >> 1
-	%30 = %29 - 1
-	%31 = %30 << 1
-	%tmp1 = %31 + 1
-	%32 = %tmp1 & 1
-	if %32 then main13 else NotANumber3
-NotANumber3:
-	fail NotANumber
-main13:
-	%33 = %tmp1 - 1
-	%34 = %33 >> 1
-	print(%34)
-	%35 = %stk0 & 1
-	if %35 then NotAPointer6 else main14
+	%27 = %stk0 & 1
+	if %27 then NotAPointer6 else main12
 NotAPointer6:
 	fail NotAPointer
-main14:
-	%36 = load(%stk0)
-	%37 = getelt(%36, 3)
-	if %37 then main15 else NoSuchMethod3
+main12:
+	%28 = load(%stk0)
+	%29 = getelt(%28, 3)
+	if %29 then main13 else NoSuchMethod3
 NoSuchMethod3:
 	fail NoSuchMethod
+main13:
+	%30 = call(%29, %stk0)
+	%31 = %30 & 1
+	if %31 then main14 else NotANumber2
+NotANumber2:
+	fail NotANumber
+main14:
+	%32 = %30 - 1
+	%33 = %32 >> 1
+	print(%33)
+	%34 = %cnt3 & 1
+	if %34 then main15 else NotANumber3
+NotANumber3:
+	fail NotANumber
 main15:
-	%38 = call(%37, %stk0)
-	%39 = %38 & 1
-	if %39 then main16 else NotANumber4
-NotANumber4:
-	fail NotANumber
-main16:
-	%40 = %38 - 1
-	%41 = %40 >> 1
-	print(%41)
-	%42 = %cnt3 & 1
-	if %42 then main17 else NotANumber5
-NotANumber5:
-	fail NotANumber
-main17:
-	%43 = %cnt3 - 1
-	%44 = %43 >> 1
-	%45 = %44 + 1
-	%46 = %45 << 1
-	%cnt4 = %46 + 1
+	%35 = %cnt3 - 1
+	%36 = %35 >> 1
+	%37 = %36 + 1
+	%38 = %37 << 1
+	%cnt4 = %38 + 1
 	jump main10
-main18:
+main16:
 	ret 0
