@@ -1569,7 +1569,7 @@ class BasicBlock {
                         if (expr instanceof CFGBinOp) //evaluate binary op (if both primitives) - basically poor-man's constant propagation
                             expr = ((CFGBinOp) expr).evalBinOp();
                         a.setExpr(expr);
-                        if (expr instanceof CFGBinOp || expr instanceof CFGGet || expr instanceof CFGLoad) {
+                        if (expr instanceof CFGBinOp || expr instanceof CFGLoad) {
                             index = vn.indexOf(expr);
                             if (index != -1) {
                                 changed = true;
@@ -1582,7 +1582,7 @@ class BasicBlock {
                                 vn.add(expr);
                             }
                             // alloc is ignored since classes need to be instantiated separately
-                            // call is ignored since side effects exist
+                            // call & get are ignored since side effects exist
                             // var & primitive are handled separately
                             // phi is ignored since phis shouldn't be changed by VN (phis also won't be in
                             // Ops at this point)
