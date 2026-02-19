@@ -1,0 +1,59 @@
+data:
+code:
+
+main:
+	%0 = 2 << 1
+	%x0 = %0 + 1
+	%1 = 1 << 1
+	%y0 = %1 + 1
+	%2 = %x0 & 1
+	if %2 then main1 else NotANumber0
+NotANumber0:
+	fail NotANumber
+main1:
+	%3 = %x0 - 1
+	%4 = %3 >> 1
+	%5 = %y0 & 1
+	if %5 then main2 else NotANumber1
+NotANumber1:
+	fail NotANumber
+main2:
+	%6 = %y0 - 1
+	%7 = %6 >> 1
+	%8 = %4 + %7
+	%9 = %8 << 1
+	%10 = %9 + 1
+	%11 = %x0 & 1
+	if %11 then main3 else NotANumber2
+NotANumber2:
+	fail NotANumber
+main3:
+	%12 = %x0 - 1
+	%13 = %12 >> 1
+	%14 = %10 & 1
+	if %14 then main4 else NotANumber3
+NotANumber3:
+	fail NotANumber
+main4:
+	%15 = %10 - 1
+	%16 = %15 >> 1
+	%17 = %13 * %16
+	%18 = %17 << 1
+	%y1 = %18 + 1
+	%19 = %x0 & 1
+	if %19 then main5 else NotANumber4
+NotANumber4:
+	fail NotANumber
+main5:
+	%20 = %x0 - 1
+	%21 = %20 >> 1
+	print(%21)
+	%22 = %y1 & 1
+	if %22 then main6 else NotANumber5
+NotANumber5:
+	fail NotANumber
+main6:
+	%23 = %y1 - 1
+	%24 = %23 >> 1
+	print(%24)
+	ret 0

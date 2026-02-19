@@ -1,0 +1,31 @@
+data:
+code:
+
+main:
+	if 1 then main1 else NotANumber0
+NotANumber0:
+	fail NotANumber
+main1:
+	if 1 then main2 else NotANumber1
+NotANumber1:
+	fail NotANumber
+main2:
+	if 1 then main3 else NotANumber2
+NotANumber2:
+	fail NotANumber
+main3:
+	if 1 then main4 else NotANumber3
+NotANumber3:
+	fail NotANumber
+main4:
+	if 1 then main5 else NotANumber4
+NotANumber4:
+	fail NotANumber
+main5:
+	print(2)
+	if 1 then main6 else NotANumber5
+NotANumber5:
+	fail NotANumber
+main6:
+	print(8)
+	ret 0

@@ -1,0 +1,9 @@
+main with x, y:
+    x = 1
+    y = 1
+    print(y)
+    x = 3
+    while(y < 10): {
+        y = (y+1)
+        print(y)
+    }
