@@ -7,6 +7,7 @@ import tokenize.TokenType;
 
 public record DataType(String typeName, boolean isObject) {
     private static HashMap<String, DataType> typeNames = new HashMap<>();
+    public static final DataType intType = new DataType("int", false);
 
     public static DataType getType(Token t) {
         DataType type = typeNames.get(t.toString());
@@ -19,7 +20,7 @@ public record DataType(String typeName, boolean isObject) {
 
     public static DataType processType(Token type) {
         if (type.getType() == TokenType.INT)
-            return new DataType("int", false);
+            return intType;
         else if (type.getType() == TokenType.IDENTIFIER)
             return new DataType(((Identifier) type).name(), true);
         else
