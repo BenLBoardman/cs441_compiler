@@ -6,7 +6,7 @@ import tokenize.Token;
 import tokenize.TokenType;
 
 public record DataType(String typeName, boolean isObject) {
-    private static HashMap<String, DataType> typeNames = new HashMap<>();
+    private static HashMap<String, DataType> typeNames = new HashMap<>(); //list of all valid data types
     public static final DataType intType = new DataType("int", false);
 
     public static DataType getType(Token t) {
@@ -30,5 +30,10 @@ public record DataType(String typeName, boolean isObject) {
     @Override
     public boolean equals(Object o) {
         return this.typeName.equals(((DataType)o).typeName);
+    }
+
+    @Override
+    public final String toString() {
+        return typeName;
     }
 }

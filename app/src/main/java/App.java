@@ -486,7 +486,7 @@ record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock addr, A
                             b.setJmp(succ.getJmp());
                             succ.setJmp(new CFGRetOp(CFGPrimitive.getPrimitive(0)));
                             b.removeSucc(succ);
-                            for(BasicBlock s : ((HashSet<BasicBlock>)targetSuccs.clone())) {
+                            for(BasicBlock s : new HashSet<BasicBlock>(targetSuccs)) {
                                 s.replacePred(succ, b);
                             }
                             changed = true;
@@ -558,15 +558,15 @@ class CtrlFlowGraph {
         globals = new ArrayList<>();
         methods = new ArrayList<>();
         ArrayList<String> uniqueFields = new ArrayList<>();
-        ArrayList<Method> uniqueMethods = new ArrayList<>();
-        for(ParserClass c : code.classes) { // find all unique field & method names
+        ArrayList<ASTMethod> uniqueMethods = new ArrayList<>();
+        for(ASTClass c : code.classes) { // find all unique field & method names
             for(String f : c.fields().keySet()) {
                 if(!uniqueFields.contains(f)) {
                     uniqueFields.add(f);
                     globals.add(f);
                 }
             }
-            for(Method m : c.iterMethods()) {
+            for(ASTMethod m : c.iterMethods()) {
                 if(!uniqueMethods.contains(m)) 
                     uniqueMethods.add(m);
                     methods.add(m.name());
@@ -574,10 +574,10 @@ class CtrlFlowGraph {
             
         }
         
-        for(ParserClass c : code.classes) { // build fields and vtables
+        for(ASTClass c : code.classes) { // build fields and vtables
             vtable = new CFGArray("vtbl"+c.name(), new String[uniqueMethods.size()]);
             for(int i = 0; i < uniqueMethods.size(); i++) {
-                if(c.methods().containsKey(uniqueMethods.get(i))) {
+                if(c.methods().containsValue(uniqueMethods.get(i))) {
                     vtable.elems()[i] = uniqueMethods.get(i).name() + c.name();
                 }
                 else {
@@ -604,9 +604,9 @@ class CtrlFlowGraph {
 
         basicBlocks = new ArrayList<>();
         for(int i = 0; i < code.classes.size(); i++) {
-            ParserClass c = code.classes.get(i);
+            ASTClass c = code.classes.get(i);
             CFGClass cfgClass = classes.get(i);
-            for(Method m : c.iterMethods()) {
+            for(ASTMethod m : c.iterMethods()) {
                 cfgClass.methods().add(methodToCfg(m, c.name(), c.type(), false));
             }
         }
@@ -624,7 +624,7 @@ class CtrlFlowGraph {
         return null;
     }
     
-    private CFGMethod methodToCfg(Method m, String classname, DataType classType, boolean isMain) {
+    private CFGMethod methodToCfg(ASTMethod m, String classname, DataType classType, boolean isMain) {
         CFGVar tmp = new CFGVar("");
         HashSet<CFGVar> activeVars = new HashSet<>();
         CFGVar[] args = new CFGVar[0];

@@ -4,10 +4,10 @@ import java.lang.StringBuilder;
 import java.util.ArrayList;
 
 public class ParsedCode {
-    public final Method main;
-    public final ArrayList<ParserClass> classes;
+    public final ASTMethod main;
+    public final ArrayList<ASTClass> classes;
 
-    public ParsedCode(Method main, ArrayList<ParserClass> classes) {
+    public ParsedCode(ASTMethod main, ArrayList<ASTClass> classes) {
         this.main = main;
         this.classes = classes;
     }
@@ -15,7 +15,7 @@ public class ParsedCode {
     @Override public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("`````````````````````\n\tPARSED CODE\n");
-        for (ParserClass c : classes) {
+        for (ASTClass c : classes) {
             sb.append("CLASS\n");
             sb.append(c.toString() + "\n");
         }
