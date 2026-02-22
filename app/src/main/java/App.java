@@ -1678,6 +1678,8 @@ class BasicBlock {
         switch (expr) {
             case Constant c:
                 return CFGPrimitive.getPrimitive(c.value());
+            case NullExpr n:
+                return CFGPrimitive.getPrimitive(0);
             case Variable v:
                 CFGVar tmpVar = getActive(v.name());
                 if(tmpVar == null)
