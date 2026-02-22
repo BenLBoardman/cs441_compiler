@@ -114,6 +114,7 @@ public class Tokenizer {
     private final Comma comma = new Comma();
     private final Returning returning = new Returning();
     private final Int intTok = new Int();
+    private final NullTok nullTok = new NullTok();
 
     private final String text;
     private int current;
@@ -214,6 +215,7 @@ public class Tokenizer {
                         case "locals": return locals;
                         case "returning": return returning;
                         case "int": return intTok;
+                        case "null": return nullTok;
                         default: return new Identifier(fragment);
                     }
                 } else {

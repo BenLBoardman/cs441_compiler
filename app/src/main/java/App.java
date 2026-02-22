@@ -184,6 +184,10 @@ class Parser {
                     throw new IllegalArgumentException("Expected valid class name but found: "+cname);
                 return new ClassRef(((Identifier)cname).name());
             case This t: return new ThisExpr();
+            case NullTok n:
+            if(tok.next().getType() != TokenType.COLON)
+                throw new IllegalArgumentException("Error: Expected colon for type annotation following null token ");
+            return new NullExpr(DataType.processType(tok.next()));
             case Token o:
                 throw new IllegalArgumentException("Token "+o+" is not a valid start of an expression");
         }
