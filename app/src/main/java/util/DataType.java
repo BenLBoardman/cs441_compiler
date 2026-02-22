@@ -1,4 +1,9 @@
+package util;
 import java.util.HashMap;
+
+import tokenize.Identifier;
+import tokenize.Token;
+import tokenize.TokenType;
 
 public record DataType(String typeName, boolean isObject) {
     private static HashMap<String, DataType> typeNames = new HashMap<>();
@@ -19,5 +24,10 @@ public record DataType(String typeName, boolean isObject) {
             return new DataType(((Identifier) type).name(), true);
         else
             throw new IllegalArgumentException("Expected return type, found " + type);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this.typeName.equals(((DataType)o).typeName);
     }
 }

@@ -1,85 +1,4 @@
-enum TokenType { 
-    // Fixed punctuation
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    LEFT_BRACK,
-    RIGHT_BRACK,
-    CARET,
-    AMPERSAND,
-    ATSIGN,
-    NOT,
-    DOT,
-    COLON,
-    COMMA,
-    UNDERSCORE,
-    // Keywords
-    THIS,
-    IF,
-    IFONLY,
-    ELSE,
-    WHILE,
-    RETURN,
-    METHOD,
-    CLASS,
-    PRINT,
-    FIELDS,
-    WITH,
-    LOCALS,
-    MAIN,
-    EOF,
-    // Tokens with data
-    OPERATOR,
-    NUMBER,
-    IDENTIFIER,
-    RETURNING,
-    INT,
-    NULL
-}
-
-sealed interface Token 
-    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, Underscore, If, IfOnly, Else, While, Return, TMethod, TClass, Print, 
-    Fields, With, Locals, Main, Colon, LeftBrace, RightBrace, LeftBrack, RightBrack, Identifier, Eof, This, Comma, Returning, Int, NullTok {
-    TokenType getType();
-}
-record Number(long value) implements Token { @Override public TokenType getType() { return TokenType.NUMBER; } }
-record LeftParen() implements Token { @Override public TokenType getType() { return TokenType.LEFT_PAREN; } }
-record RightParen() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_PAREN; } }
-record LeftBrace() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACE; } }
-record RightBrace() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACE; } }
-record LeftBrack() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACK; } }
-record RightBrack() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACK; } }
-record Operator(String op) implements Token {
-    @Override public TokenType getType() { return TokenType.OPERATOR; }
-    public String getOp() { return this.op; }
-}
-record Caret() implements Token { @Override public TokenType getType() { return TokenType.CARET; } }
-record Ampersand() implements Token { @Override public TokenType getType() { return TokenType.AMPERSAND; } }
-record AtSign() implements Token { @Override public TokenType getType() { return TokenType.ATSIGN; } }
-record Not() implements Token { @Override public TokenType getType() { return TokenType.NOT; } }
-record Dot() implements Token { @Override public TokenType getType() { return TokenType.DOT; } }
-record Underscore() implements Token { @Override public TokenType getType() { return TokenType.UNDERSCORE; } }
-record If() implements Token { @Override public TokenType getType() { return TokenType.IF; } }
-record IfOnly() implements Token { @Override public TokenType getType() { return TokenType.IFONLY; } }
-record Else() implements Token { @Override public TokenType getType() { return TokenType.ELSE; } }
-record While() implements Token { @Override public TokenType getType() { return TokenType.WHILE; } }
-record Return() implements Token { @Override public TokenType getType() { return TokenType.RETURN; } }
-record TMethod() implements Token { @Override public TokenType getType() { return TokenType.METHOD; } }
-record TClass() implements Token { @Override public TokenType getType() { return TokenType.CLASS; } }
-record Print() implements Token { @Override public TokenType getType() { return TokenType.PRINT; } }
-record With() implements Token { @Override public TokenType getType() { return TokenType.WITH; } }
-record Fields() implements Token { @Override public TokenType getType() { return TokenType.FIELDS; } }
-record Main() implements Token { @Override public TokenType getType() { return TokenType.MAIN; } }
-record Locals() implements Token { @Override public TokenType getType() { return TokenType.LOCALS; } }
-record Colon() implements Token { @Override public TokenType getType() { return TokenType.COLON; } }
-record Comma() implements Token { @Override public TokenType getType() { return TokenType.COMMA; } }
-record Eof() implements Token { @Override public TokenType getType() { return TokenType.EOF; } }
-record Identifier(String name) implements Token { @Override public TokenType getType() { return TokenType.IDENTIFIER; } }
-record This() implements Token { @Override public TokenType getType() { return TokenType.THIS; } }
-record Returning() implements Token { @Override public TokenType getType() { return TokenType.RETURNING; } }
-record Int() implements Token { @Override public TokenType getType() { return TokenType.INT; } }
-record NullTok() implements Token { @Override public TokenType getType() {return TokenType.NULL; } }
+package tokenize;
 
 public class Tokenizer {
 
@@ -190,7 +109,7 @@ public class Tokenizer {
                     int start = current++;
                     while (current < text.length() && Character.isDigit(text.charAt(current))) current ++;
                     // current now points to the first non-digit character, or past the end of the text
-                    return new Number(Integer.parseInt(text.substring(start,current)));
+                    return new NumberTok(Integer.parseInt(text.substring(start,current)));
                 }
                 // Now down to keywords and identifiers
                 else if (Character.isLetter(text.charAt(current))) {
