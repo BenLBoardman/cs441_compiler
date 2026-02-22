@@ -14,232 +14,11 @@ import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 
 
-enum TokenType { 
-    // Fixed punctuation
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    LEFT_BRACK,
-    RIGHT_BRACK,
-    CARET,
-    AMPERSAND,
-    ATSIGN,
-    NOT,
-    DOT,
-    COLON,
-    COMMA,
-    UNDERSCORE,
-    // Keywords
-    THIS,
-    IF,
-    IFONLY,
-    ELSE,
-    WHILE,
-    RETURN,
-    METHOD,
-    CLASS,
-    PRINT,
-    FIELDS,
-    WITH,
-    LOCALS,
-    MAIN,
-    EOF,
-    // Tokens with data
-    OPERATOR,
-    NUMBER,
-    IDENTIFIER,
-    RETURNING,
-    INT
-}
 
-sealed interface Token 
-    permits Number, LeftParen, RightParen, Operator, Caret, Ampersand, AtSign, Not, Dot, Underscore, If, IfOnly, Else, While, Return, TMethod, TClass, Print, 
-    Fields, With, Locals, Main, Colon, LeftBrace, RightBrace, LeftBrack, RightBrack, Identifier, Eof, This, Comma, Returning, Int {
-    TokenType getType();
-}
-record Number(long value) implements Token { @Override public TokenType getType() { return TokenType.NUMBER; } }
-record LeftParen() implements Token { @Override public TokenType getType() { return TokenType.LEFT_PAREN; } }
-record RightParen() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_PAREN; } }
-record LeftBrace() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACE; } }
-record RightBrace() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACE; } }
-record LeftBrack() implements Token { @Override public TokenType getType() { return TokenType.LEFT_BRACK; } }
-record RightBrack() implements Token { @Override public TokenType getType() { return TokenType.RIGHT_BRACK; } }
-record Operator(String op) implements Token {
-    @Override public TokenType getType() { return TokenType.OPERATOR; }
-    public String getOp() { return this.op; }
-}
-record Caret() implements Token { @Override public TokenType getType() { return TokenType.CARET; } }
-record Ampersand() implements Token { @Override public TokenType getType() { return TokenType.AMPERSAND; } }
-record AtSign() implements Token { @Override public TokenType getType() { return TokenType.ATSIGN; } }
-record Not() implements Token { @Override public TokenType getType() { return TokenType.NOT; } }
-record Dot() implements Token { @Override public TokenType getType() { return TokenType.DOT; } }
-record Underscore() implements Token { @Override public TokenType getType() { return TokenType.UNDERSCORE; } }
-record If() implements Token { @Override public TokenType getType() { return TokenType.IF; } }
-record IfOnly() implements Token { @Override public TokenType getType() { return TokenType.IFONLY; } }
-record Else() implements Token { @Override public TokenType getType() { return TokenType.ELSE; } }
-record While() implements Token { @Override public TokenType getType() { return TokenType.WHILE; } }
-record Return() implements Token { @Override public TokenType getType() { return TokenType.RETURN; } }
-record TMethod() implements Token { @Override public TokenType getType() { return TokenType.METHOD; } }
-record TClass() implements Token { @Override public TokenType getType() { return TokenType.CLASS; } }
-record Print() implements Token { @Override public TokenType getType() { return TokenType.PRINT; } }
-record With() implements Token { @Override public TokenType getType() { return TokenType.WITH; } }
-record Fields() implements Token { @Override public TokenType getType() { return TokenType.FIELDS; } }
-record Main() implements Token { @Override public TokenType getType() { return TokenType.MAIN; } }
-record Locals() implements Token { @Override public TokenType getType() { return TokenType.LOCALS; } }
-record Colon() implements Token { @Override public TokenType getType() { return TokenType.COLON; } }
-record Comma() implements Token { @Override public TokenType getType() { return TokenType.COMMA; } }
-record Eof() implements Token { @Override public TokenType getType() { return TokenType.EOF; } }
-record Identifier(String name) implements Token { @Override public TokenType getType() { return TokenType.IDENTIFIER; } }
-record This() implements Token { @Override public TokenType getType() { return TokenType.THIS; } }
-record Returning() implements Token { @Override public TokenType getType() { return TokenType.RETURNING; } }
-record Int() implements Token { @Override public TokenType getType() { return TokenType.RETURNING; } }
-
-class Tokenizer {
-
-    // We'll pre-allocate and reuse common tokens without data
-    private final LeftParen lp = new LeftParen();
-    private final RightParen rp = new RightParen();
-    private final LeftBrace lb = new LeftBrace();
-    private final RightBrace rb = new RightBrace();
-    private final LeftBrack lbk = new LeftBrack();
-    private final RightBrack rbk = new RightBrack();
-    private final Colon colon = new Colon();
-    private final TMethod method = new TMethod();
-    private final TClass tClass = new TClass();
-    private final Print print = new Print();
-    private final With with = new With();
-    private final Fields fields = new Fields();
-    private final Main main = new Main();
-    private final Locals locals = new Locals();
-    private final Return ret = new Return();
-    private final While w = new While();
-    private final If iff = new If();
-    private final IfOnly ifonly = new IfOnly();
-    private final Else elseTok = new Else();
-    private final Not not = new Not();
-    private final AtSign at = new AtSign();
-    private final Underscore underscore = new Underscore();
-    private final Caret caret = new Caret();
-    private final Ampersand amp = new Ampersand();
-    private final Dot dot = new Dot();
-    private final Eof eof = new Eof();
-    private final This th = new This();
-    private final Comma comma = new Comma();
-    private final Returning returning = new Returning();
-    private final Int intTok = new Int();
-
-    private final String text;
-    private int current;
-    private Token cached;
-    public Tokenizer(String t) {
-        this.text = t;
-        this.current = 0;
-    }
-    public Token peek() {
-        if (cached == null) {
-            cached = advanceCurrent();
-        }
-        return cached;
-    }
-    public Token next() {
-        if (cached == null) {
-            return advanceCurrent();
-        } else {
-            Token tmp = cached;
-            cached = null;
-            return tmp;
-        }
-    }
-    private Token advanceCurrent() {
-        while (current < text.length() && Character.isWhitespace(text.charAt(current))) {
-            current++;
-        }
-        if (current >= text.length()) {
-            return this.eof;
-        }
-        switch (text.charAt(current)) {
-            case '(': current++; return lp;
-            case ')': current++; return rp;
-            case '{': current++; return lb;
-            case '}': current++; return rb;
-            case '[': current++; return lbk;
-            case ']': current++; return rbk;
-            case ':': current++; return colon;
-            case '!':
-                current ++; if(text.charAt(current) == '=') { current++; return new Operator("!="); } 
-                return not;
-            case '@': current++; return at;
-            case '^': current++; return caret;
-            case '&': current++; return amp;
-            case '.': current++; return dot;
-            case ',': current++; return comma;
-            case '_': current++; return underscore;
-
-            case '<':
-                current++; 
-                if (text.charAt(current) == '=') { current++; return new Operator("<="); }
-                else if (text.charAt(current) == '<') { current++; return new Operator("<<"); }
-                return new Operator("<");
-            case '>':
-                current++; 
-                if (text.charAt(current) == '=') { current++; return new Operator(">="); }
-                else if (text.charAt(current) == '>') { current++; return new Operator(">>"); }
-                return new Operator(">");
-            case '+': current++; return new Operator("+");
-            case '-': current++; return new Operator("-");
-            case '*': current++; return new Operator("*");
-            case '/': current++; return new Operator("/");
-            case '=': 
-                current++; 
-                if (text.charAt(current) != '=')
-                    return new Operator("=");
-                current++;
-                return new Operator("==");
-            
-            default:
-                if (Character.isDigit(text.charAt(current))) {
-                    // This is a digit
-                    int start = current++;
-                    while (current < text.length() && Character.isDigit(text.charAt(current))) current ++;
-                    // current now points to the first non-digit character, or past the end of the text
-                    return new Number(Integer.parseInt(text.substring(start,current)));
-                }
-                // Now down to keywords and identifiers
-                else if (Character.isLetter(text.charAt(current))) {
-                    int start = current++;
-                    while (current < text.length() && Character.isLetterOrDigit(text.charAt(current))) current ++;
-                    // current now points to the first non-alphanumeric character, or past the end of the string
-                    String fragment = text.substring(start,current);
-                    // Unlike the constant parsing switch above, this has already advanced current
-                    switch (fragment) {
-                        case "if": return iff;
-                        case "ifonly": return ifonly;
-                        case "else": return elseTok;
-                        case "while": return w;
-                        case "return": return ret;
-                        case "method": return method;
-                        case "class": return tClass;
-                        case "print": return print;
-                        case "this": return th;
-                        case "with": return with;
-                        case "fields": return fields;
-                        case "main": return main;
-                        case "locals": return locals;
-                        case "returning": return returning;
-                        case "int": return intTok;
-                        default: return new Identifier(fragment);
-                    }
-                } else {
-                    throw new IllegalArgumentException("Unsupported character: "+text.charAt(current));
-                }
-        }
-    }
-}
 
 //Expressions
 sealed interface Expression 
-    permits Constant, Binop, MethodCall, FieldRead, ClassRef, ThisExpr, Variable {
+    permits Constant, Binop, MethodCall, FieldRead, ClassRef, ThisExpr, Variable, NullExpr {
 }
 record ThisExpr() implements Expression {}
 record Constant(long value) implements Expression {}
@@ -248,6 +27,7 @@ record MethodCall(Expression base, String methodname, List<Expression> args) imp
 record FieldRead(Expression base, String fieldname) implements Expression {}
 record ClassRef(String classname) implements Expression {}
 record Variable(String name) implements Expression {}
+record NullExpr(DataType type) implements Expression {}
 
 
 enum StatementType {
@@ -283,6 +63,8 @@ record Method(String name, HashMap<String, DataType> args, DataType returnType, 
     }
 
     public void checkTypes(ArrayList<String> typeNames) {
+        if(!typeNames.contains(returnType.typeName()))
+            throw new IllegalArgumentException("Data type for method "+name+" is not defined in code.");
         for (Entry<String, DataType> a : args().entrySet()) {
             if (!typeNames.contains(a.getValue().typeName()))
                 throw new IllegalArgumentException("Error: Data type for " + a.getKey() + " in method " + name()
@@ -296,7 +78,20 @@ record Method(String name, HashMap<String, DataType> args, DataType returnType, 
     }
 }
 
-record Class(String name, HashMap<String, DataType> fields, ArrayList<Method> methods){ @Override public boolean equals(Object o) { return this.name.equals(((String)o)); } }
+record Class(String name, HashMap<String, DataType> fields, HashMap<Method, DataType> methods) {
+    @Override
+    public boolean equals(Object o) {
+        return this.name.equals(((String) o));
+    }
+
+    public Iterable<Entry<Method, DataType>> iterMethodSet() {
+        return methods.entrySet();
+    }
+
+    public Iterable<Method> iterMethods() {
+        return methods.keySet();
+    }
+}
 
 class ParsedCode {
     public final Method main;
@@ -656,9 +451,11 @@ class Parser {
             else if(punc.getType() != TokenType.METHOD)
                 throw new IllegalArgumentException("Expected either ',' or 'method', found "+punc);
         }
-        ArrayList<Method> methods = new ArrayList<>();
+        HashMap<Method, DataType> methods = new HashMap<>();
+        Method method;
         while(tok.peek().getType() != TokenType.RIGHT_BRACK) {
-            methods.add(parseMethod());
+            method = parseMethod();
+            methods.put(method, method.returnType());
         } 
         tok.next(); //throw away right bracket
         return new Class(name, fields, methods);
@@ -674,7 +471,7 @@ class Parser {
             typeNames.add(classes.get(classes.size()-1).name());
         }
         for(Class c : classes) {
-            for(Method m : c.methods()) {
+            for(Method m : c.iterMethods()) {
                 m.checkTypes(typeNames); //check that all vars use types that exist
             }
         }
@@ -1215,13 +1012,13 @@ class CtrlFlowGraph {
         ArrayList<String> uniqueFields = new ArrayList<>();
         ArrayList<Method> uniqueMethods = new ArrayList<>();
         for(Class c : code.classes) { // find all unique field & method names
-            for(String f : c.fields()) {
+            for(String f : c.fields().keySet()) {
                 if(!uniqueFields.contains(f)) {
                     uniqueFields.add(f);
                     globals.add(f);
                 }
             }
-            for(Method m : c.methods()) {
+            for(Method m : c.iterMethods()) {
                 if(!uniqueMethods.contains(m)) 
                     uniqueMethods.add(m);
                     methods.add(m.name());
@@ -1232,7 +1029,7 @@ class CtrlFlowGraph {
         for(Class c : code.classes) { // build fields and vtables
             vtable = new CFGArray("vtbl"+c.name(), new String[uniqueMethods.size()]);
             for(int i = 0; i < uniqueMethods.size(); i++) {
-                if(c.methods().contains(uniqueMethods.get(i))) {
+                if(c.methods().containsKey(uniqueMethods.get(i))) {
                     vtable.elems()[i] = uniqueMethods.get(i).name() + c.name();
                 }
                 else {
@@ -1243,7 +1040,7 @@ class CtrlFlowGraph {
             fields = new CFGArray("fields"+c.name(), new Integer[uniqueFields.size()]);
             int numFields =  1;
             for(int i = 0; i < uniqueFields.size(); i++) {
-                if(c.fields().contains(uniqueFields.get(i))) {
+                if(c.fields().containsKey(uniqueFields.get(i))) {
                     fields.elems()[i] = 1 + numFields;
                     numFields++;
                 }
@@ -1261,7 +1058,7 @@ class CtrlFlowGraph {
         for(int i = 0; i < code.classes.size(); i++) {
             Class c = code.classes.get(i);
             CFGClass cfgClass = classes.get(i);
-            for(Method m : c.methods()) {
+            for(Method m : c.iterMethods()) {
                 cfgClass.methods().add(methodToCfg(m, c.name(), false));
             }
         }
@@ -1283,18 +1080,21 @@ class CtrlFlowGraph {
         CFGVar tmp = new CFGVar("");
         HashSet<CFGVar> activeVars = new HashSet<>();
         CFGVar[] args = new CFGVar[0];
+        Iterator<String> iterator;
         if (!isMain) {
+            iterator = m.args().keySet().iterator();
             args = new CFGVar[m.args().size()+1];
             args[0] = new CFGVar("this");
             for (int i = 1; i < args.length; i++) {
-                args[i] = new CFGVar(m.args().get(i-1));
+                args[i] = new CFGVar(iterator.next());
             }
             Collections.addAll(activeVars, args);
         }
         CFGVar[] locals = new CFGVar[0];
         locals = new CFGVar[m.locals().size()];
+        iterator = m.locals().keySet().iterator();
         for (int i = 0; i < locals.length; i++) {
-            locals[i] = new CFGVar(m.locals().get(i));
+            locals[i] = new CFGVar(iterator.next());
         }
         BasicBlock.blockId = 0;
         

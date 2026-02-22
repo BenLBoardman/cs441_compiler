@@ -1,4 +1,4 @@
-main with x, y:
+main with x:int, y:int:
     x = 2
     y = 2
     y = (x * (x + y))
