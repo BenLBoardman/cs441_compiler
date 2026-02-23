@@ -1,0 +1,102 @@
+Parsed: doStacker5:
+    print(%v1)
+    %10 = load(%stk)
+    %11 = getelt(%10, 2)
+    %12 = call(%11, %stk)
+    jump doStacker4
+getNextListNode(this):
+    %0 = %this + 16
+    %1 = load(%0)
+    ret %1
+popStack(this):
+    %0 = %this + 8
+    %1 = load(%0)
+    %2 = %1 == 0
+    if %2 then popStack1 else popStack2
+getValListNode(this):
+    %0 = %this + 8
+    %1 = load(%0)
+    ret %1
+main:
+    %stk0 = alloc(2)
+    store(%stk0, @vtblStack)
+    %0 = %stk0 + 8
+    store(%0, 0)
+    %stkr0 = alloc(1)
+    store(%stkr0, @vtblStacker)
+    %1 = load(%stkr0)
+    %2 = getelt(%1, 4)
+    %3 = call(%2, %stkr0, %stk0)
+    ret 0
+doStacker1:
+    %x1 = call(, doStacker, 20, doStacker2, %5)
+    %0 = %x1 > 0
+    if %0 then doStacker2 else doStacker3
+doStacker4:
+    %v1 = call(, doStacker5, %12, doStacker3, %8)
+    %9 = %v1 != 0
+    if %9 then doStacker5 else doStacker6
+doStacker2:
+    %1 = load(%stk)
+    %2 = getelt(%1, 3)
+    %3 = call(%2, %stk, %x1)
+    %5 = %x1 - 1
+    jump doStacker1
+doStacker6:
+    ret 0
+doStacker3:
+    %6 = load(%stk)
+    %7 = getelt(%6, 2)
+    %8 = call(%7, %stk)
+    jump doStacker4
+doStacker(this, stk):
+    jump doStacker1
+popStack2:
+    %3 = %this + 8
+    %4 = load(%3)
+    %5 = load(%4)
+    %6 = getelt(%5, 0)
+    %7 = call(%6, %4)
+    %8 = load(%4)
+    %9 = getelt(%8, 1)
+    %10 = call(%9, %4)
+    store(%3, %10)
+    ret %7
+pushStack(this, v):
+    %tmp0 = alloc(3)
+    store(%tmp0, @vtblListNode)
+    %0 = %tmp0 + 8
+    store(%0, %v)
+    %1 = %this + 8
+    %2 = load(%1)
+    %3 = %tmp0 + 16
+    store(%3, %2)
+    store(%1, %tmp0)
+    ret 0
+popStack1:
+    ret 0
+
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+Final result: Data { val: 0 }
+Execution stats:
+ExecStats { fast_alu_ops: 307, slow_alu_ops: 82, conditional_branches: 63, unconditional_branches: 42, calls: 82, rets: 83, mem_reads: 265, mem_writes: 103, allocs: 22, prints: 20, phis: 42 }

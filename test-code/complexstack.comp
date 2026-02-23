@@ -31,7 +31,7 @@ class Stack [
 
 class Stacker [
     fields
-    
+
     method do(stk:Stack) returning int with locals x:int, v:int:
         x = 20
         while (x > 0): {
@@ -47,8 +47,6 @@ class Stacker [
 
 main with stk:Stack, stkr:Stacker:
     stk = @Stack
-    print(0)
     !stk.list = null:ListNode
-    print(1)
     stkr = @Stacker
     _ = ^stkr.do(stk)

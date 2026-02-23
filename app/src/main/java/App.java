@@ -996,6 +996,7 @@ class BasicBlock {
         boolean changed = true;
         while (changed) {
             changed = false;
+            vn.clear();
             for (CFGOp o : ops) {
                 switch (o) {
                     case CFGAssn a:
@@ -1004,7 +1005,7 @@ class BasicBlock {
                         if (expr instanceof CFGBinOp) //evaluate binary op (if both primitives) - basically poor-man's constant propagation
                             expr = ((CFGBinOp) expr).evalBinOp();
                         a.setExpr(expr);
-                        if (expr instanceof CFGBinOp || expr instanceof CFGLoad) {
+                        if (expr instanceof CFGBinOp) {
                             index = vn.indexOf(expr);
                             if (index != -1) {
                                 changed = true;
