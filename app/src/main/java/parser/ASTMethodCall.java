@@ -7,7 +7,7 @@ import java.util.Iterator;
 
 import util.DataType;
 
-public record MethodCall(Expression base, String methodname, List<Expression> args) implements Expression {
+public record ASTMethodCall(ASTExpression base, String methodname, List<ASTExpression> args) implements ASTExpression {
 
     @Override
     public DataType getType(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {

@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import util.DataType;
 
-public record PrintStmt(Expression str) implements Statement{
+public record ASTPrintStmt(ASTExpression str) implements ASTStatement{
 
     @Override
     public void checkTypes(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {

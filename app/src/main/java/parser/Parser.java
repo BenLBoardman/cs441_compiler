@@ -12,40 +12,40 @@ public class Parser {
         tok = t;
     }
 
-    public Expression parseExpr(ASTMethod method) {
+    public ASTExpression parseExpr(ASTMethod method) {
         switch (tok.next()) {
             case Eof eof: throw new IllegalArgumentException("No expression to parse: EOF");
-            case NumberTok n: return new Constant(n.value());
-            case Identifier i: return new Variable(i.name());
+            case NumberTok n: return new ASTConstant(n.value());
+            case Identifier i: return new ASTVariable(i.name());
             case LeftParen p:
                 // Should be start of a binary operation
-                Expression lhs = parseExpr(method);
+                ASTExpression lhs = parseExpr(method);
                 Token optok = tok.next();
                 if (optok.getType() != TokenType.OPERATOR || ((Operator)optok).getOp().equals("="))
                     throw new IllegalArgumentException("Expected non-assignment operator but found "+optok);
-                Expression rhs = parseExpr(method);
+                ASTExpression rhs = parseExpr(method);
 
                 Token closetok = tok.next();
                 if (closetok.getType() != TokenType.RIGHT_PAREN)
                     throw new IllegalArgumentException("Expected right paren but found "+closetok);
-                Binop op = new Binop(lhs, ((Operator)optok).op(), rhs);
-                if(!op.isBool() && (lhs instanceof ThisExpr || rhs instanceof ThisExpr)) {
+                ASTBinop op = new ASTBinop(lhs, ((Operator)optok).op(), rhs);
+                if(!op.isBool() && (lhs instanceof ASTThisExpr || rhs instanceof ASTThisExpr)) {
                     throw new IllegalArgumentException("Error: Math operations cannot be performed on \"this\"");
                 }
                 return op;
             case Ampersand a:
                 // Should be field read
-                Expression base = parseExpr(method);
+                ASTExpression base = parseExpr(method);
                 Token dot = tok.next();
                 if (dot.getType() != TokenType.DOT)
                     throw new IllegalArgumentException("Expected dot but found "+dot);
                 Token fname = tok.next();
                 if (fname.getType() != TokenType.IDENTIFIER)
                     throw new IllegalArgumentException("Expected valid field name but found "+fname);
-                return new FieldRead(base, ((Identifier)fname).name());
+                return new ASTFieldRead(base, ((Identifier)fname).name());
             case Caret c:
                 // Should be method call
-                Expression mbase = parseExpr(method);
+                ASTExpression mbase = parseExpr(method);
                 Token mdot = tok.next();
                 if (mdot.getType() != TokenType.DOT)
                     throw new IllegalArgumentException("Expected dot but found "+mdot);
@@ -56,9 +56,9 @@ public class Parser {
                 if (open.getType() != TokenType.LEFT_PAREN)
                     throw new IllegalArgumentException("Expected left paren but found "+open);
                 // Now we iterate through arguments
-                ArrayList<Expression> args = new ArrayList<>();
+                ArrayList<ASTExpression> args = new ArrayList<>();
                 while (tok.peek().getType() != TokenType.RIGHT_PAREN) {
-                    Expression e = parseExpr(method);
+                    ASTExpression e = parseExpr(method);
                     args.add(e);
                     // Now either a paren or a comma
                     Token punc = tok.peek();
@@ -68,37 +68,37 @@ public class Parser {
                         throw new IllegalArgumentException("Expected either ',' or ')', found "+punc);
                 }
                 tok.next(); //throw away right-paren
-                return new MethodCall(mbase, ((Identifier)mname).name(), args);
+                return new ASTMethodCall(mbase, ((Identifier)mname).name(), args);
             case AtSign a:
                 Token cname = tok.next();
                 if (cname.getType() != TokenType.IDENTIFIER)
                     throw new IllegalArgumentException("Expected valid class name but found: "+cname);
-                return new ClassRef(((Identifier)cname).name());
+                return new ASTClassRef(((Identifier)cname).name());
             case This t: 
-                return new ThisExpr(method.classname());
+                return new ASTThisExpr(method.classname());
             case NullTok n:
             if(tok.next().getType() != TokenType.COLON)
                 throw new IllegalArgumentException("Error: Expected colon for type annotation following null token ");
-            return new NullExpr(DataType.processType(tok.next()));
+            return new ASTNullExpr(DataType.processType(tok.next()));
             case Token o:
                 throw new IllegalArgumentException("Token "+o+" is not a valid start of an expression");
         }
     }
 
-    public Statement parseStmt(ASTMethod method) {
+    public ASTStatement parseStmt(ASTMethod method) {
         Token eql, colon, lbrace;
-        Expression cond;
-        ArrayList<Statement> ifBody;
+        ASTExpression cond;
+        ArrayList<ASTStatement> ifBody;
         switch(tok.peek()) {
             case Underscore u: //void: _ = <expr>
                 tok.next();
                 eql = tok.next();
                     if(eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp().equals("="))
                         throw new IllegalArgumentException("Expected '=' but found "+eql);
-                return new VoidStmt(parseExpr(method));
+                return new ASTVoidStmt(parseExpr(method));
             case Not n: //Field write !expr.field = expr
                 tok.next();
-                Expression base = parseExpr(method);
+                ASTExpression base = parseExpr(method);
                 Token dot = tok.next();
                 if (dot.getType() != TokenType.DOT)
                     throw new IllegalArgumentException("Expected dot but found " + dot);
@@ -108,8 +108,8 @@ public class Parser {
                 eql = tok.next();
                 if (eql.getType() != TokenType.OPERATOR && ((Operator) eql).getOp().equals("="))
                     throw new IllegalArgumentException("Expected '=' but found " + eql);
-                Expression rhs = parseExpr(method);
-                return new FieldWriteStmt(base, ((Identifier) fname).name(), rhs);
+                ASTExpression rhs = parseExpr(method);
+                return new ASTFieldWriteStmt(base, ((Identifier) fname).name(), rhs);
             case If i: //if e: { <newline> <one or more statements> } else { <newline> <one or more statements> }
                 tok.next();
                 cond = parseExpr(method);
@@ -119,7 +119,7 @@ public class Parser {
                 lbrace = tok.next();
                 if (lbrace.getType() != TokenType.LEFT_BRACE)
                     throw new IllegalArgumentException("Expected '{' but found " + lbrace);
-                ifBody = new ArrayList<Statement>();
+                ifBody = new ArrayList<ASTStatement>();
                 while (tok.peek().getType() != TokenType.RIGHT_BRACE) {
                     ifBody.add(parseStmt(method));
                     if (tok.peek().getType() == TokenType.EOF)
@@ -132,14 +132,14 @@ public class Parser {
                 lbrace = tok.next();
                 if (lbrace.getType() != TokenType.LEFT_BRACE)
                     throw new IllegalArgumentException("Expected '{' but found " + lbrace);
-                ArrayList<Statement> elseBody = new ArrayList<Statement>();
+                ArrayList<ASTStatement> elseBody = new ArrayList<ASTStatement>();
                 while (tok.peek().getType() != TokenType.RIGHT_BRACE) {
                     elseBody.add(parseStmt(method));
                     if (tok.peek().getType() == TokenType.EOF)
                         throw new IllegalArgumentException("Reached EOF while parsing else statement");
                 }
                 tok.next(); // throw out right brace
-                return new IfElseStmt(cond, ifBody, elseBody);
+                return new ASTIfElseStmt(cond, ifBody, elseBody);
             case IfOnly i: //ifonly e: { <newline> <one or more statements> }
                 tok.next();
                 cond = parseExpr(method);
@@ -149,14 +149,14 @@ public class Parser {
                 lbrace = tok.next();
                 if(lbrace.getType() != TokenType.LEFT_BRACE)
                     throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-                ifBody = new ArrayList<Statement>();
+                ifBody = new ArrayList<ASTStatement>();
                 while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
                     ifBody.add(parseStmt(method));
                     if(tok.peek().getType() == TokenType.EOF)
                         throw new IllegalArgumentException("Reached EOF while parsing if statement");
                 }        
                 tok.next(); //throw out right brace
-                return new IfOnlyStmt(cond, ifBody); 
+                return new ASTIfOnlyStmt(cond, ifBody); 
             case While w: //while e: { <newline> <one or more statements> }
                 tok.next();
                 cond = parseExpr(method);
@@ -166,35 +166,35 @@ public class Parser {
                 lbrace = tok.next();
                 if(lbrace.getType() != TokenType.LEFT_BRACE)
                     throw new IllegalArgumentException("Expected '{' but found "+lbrace);
-                ArrayList<Statement> body = new ArrayList<Statement>();
+                ArrayList<ASTStatement> body = new ArrayList<ASTStatement>();
                 while(tok.peek().getType() != TokenType.RIGHT_BRACE) {
                     body.add(parseStmt(method));
                     if(tok.peek().getType() == TokenType.EOF)
                         throw new IllegalArgumentException("Reached EOF while parsing if statement");
                 }        
                 tok.next(); //throw out right brace
-                return new WhileStmt(cond, body);
+                return new ASTWhileStmt(cond, body);
             case Return r: //return: return(expr)
                 tok.next();
-                Expression out = parseExpr(method);
-                return new ReturnStmt(out, method);
+                ASTExpression out = parseExpr(method);
+                return new ASTReturnStmt(out, method);
             case Print p:
                 tok.next(); //print: print(expr)
                 Token lparen = tok.next();
                 if(lparen.getType() != TokenType.LEFT_PAREN)
                     throw new IllegalArgumentException("Expected '(' but found "+lparen);
-                Expression prt = parseExpr(method);
+                ASTExpression prt = parseExpr(method);
                 Token rparen = tok.next();
                 if(rparen.getType() != TokenType.RIGHT_PAREN)
                     throw new IllegalArgumentException("Expected ')' but found "+rparen);
-                return new PrintStmt(prt);
+                return new ASTPrintStmt(prt);
             default: //nothing else, check if its a start of an expression and see if its a variable assignment
                 switch (parseExpr(method)) {
-                    case Variable v: // assignment: v = <expr>
+                    case ASTVariable v: // assignment: v = <expr>
                         eql = tok.next();
                         if(eql.getType() != TokenType.OPERATOR || !((Operator) eql).getOp().equals("="))
                             throw new IllegalArgumentException("Expected '=' but found "+eql);
-                        return new AssignStmt(v, parseExpr(method));
+                        return new ASTAssignStmt(v, parseExpr(method));
                     default:
                         throw new IllegalArgumentException("Could not find valid statement or expression");
                 }
@@ -264,7 +264,7 @@ public class Parser {
                 throw new IllegalArgumentException("Expected either ',' or ':', found "+punc);
         }
         tok.next(); //throw away colon
-        ArrayList<Statement> body = new ArrayList<>();
+        ArrayList<ASTStatement> body = new ArrayList<>();
         ASTMethod method = new ASTMethod(name, classname, args, returnType, locals, body);
         while(tok.peek().getType() != TokenType.METHOD
             && tok.peek().getType() != TokenType.EOF && tok.peek().getType() != TokenType.RIGHT_BRACK) {
@@ -308,12 +308,12 @@ public class Parser {
                 throw new IllegalArgumentException("Expected either ',' or ':', found "+punc);
         }
         tok.next(); //throw away colon
-        ArrayList<Statement> body = new ArrayList<>();
+        ArrayList<ASTStatement> body = new ArrayList<>();
         ASTMethod main = new ASTMethod(name, "", new HashMap<>(), DataType.getType(new Int()), locals, body);
         while(tok.peek().getType() != TokenType.EOF) {
             body.add(parseStmt(main));
         }
-        body.add(new ReturnStmt(new Constant(0), main));
+        body.add(new ASTReturnStmt(new ASTConstant(0), main));
         return main;
     }
 

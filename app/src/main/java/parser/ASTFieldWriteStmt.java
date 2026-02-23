@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import util.DataType;
 
-public record FieldWriteStmt(Expression base, String fieldname, Expression rhs) implements Statement{
+public record ASTFieldWriteStmt(ASTExpression base, String fieldname, ASTExpression rhs) implements ASTStatement{
 
     @Override
     public void checkTypes(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {

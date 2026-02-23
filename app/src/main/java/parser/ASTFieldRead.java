@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import util.DataType;
 
-public record FieldRead(Expression base, String fieldname) implements Expression {
+public record ASTFieldRead(ASTExpression base, String fieldname) implements ASTExpression {
 
     @Override
     public DataType getType(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {

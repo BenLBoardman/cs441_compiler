@@ -2,11 +2,9 @@ package parser;
 
 import java.util.HashMap;
 
-import javax.xml.crypto.Data;
-
 import util.DataType;
 
-public record Binop(Expression lhs, String op, Expression rhs) implements Expression {
+public record ASTBinop(ASTExpression lhs, String op, ASTExpression rhs) implements ASTExpression {
     public boolean isBool() {
         return op.equals("==") || op.equals("!=") || op.equals(">") || op.equals("<") || op.equals("<=") || op.equals(">=");
     }

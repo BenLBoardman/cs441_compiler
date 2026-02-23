@@ -6,7 +6,7 @@ import java.util.Map.Entry;
 import util.DataType;
 
 public record ASTMethod(String name, String classname, HashMap<String, DataType> args, DataType returnType, HashMap<String, DataType> locals,
-        ArrayList<Statement> body) {
+        ArrayList<ASTStatement> body) {
     @Override
     public boolean equals(Object o) {
         return this.name.equals(((ASTMethod) o).name());
@@ -23,7 +23,7 @@ public record ASTMethod(String name, String classname, HashMap<String, DataType>
                         + " is never declared in code.");
         }
         //do expr checking pass here
-        for(Statement s : body) {
+        for(ASTStatement s : body) {
             s.checkTypes(types, symbolTable);
         }
     }

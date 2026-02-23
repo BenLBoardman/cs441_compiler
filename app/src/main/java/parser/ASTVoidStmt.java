@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import util.DataType;
 
-public record VoidStmt(Expression rhs) implements Statement{
+public record ASTVoidStmt(ASTExpression rhs) implements ASTStatement{
 
     @Override
     public void checkTypes(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {

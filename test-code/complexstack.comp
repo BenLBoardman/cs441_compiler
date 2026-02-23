@@ -1,18 +1,23 @@
 class ListNode [
     fields val:int, next:ListNode
+
     method getNext() returning ListNode with locals:
         return &this.next
+
     method getVal() returning int with locals:
         return &this.val
 ]
+
 class Stack [
     fields list:ListNode
+
     method push(v:int) returning int with locals tmp:ListNode:
         tmp = @ListNode
 	!tmp.val = v
 	!tmp.next = &this.list
 	!this.list = tmp
 	return 0
+
     method pop() returning int with locals tmp:int, head:ListNode:
         if (&this.list == null:ListNode): {
             return 0
@@ -23,8 +28,10 @@ class Stack [
             return tmp
         }
 ]
+
 class Stacker [
     fields
+    
     method do(stk:Stack) returning int with locals x:int, v:int:
         x = 20
         while (x > 0): {
@@ -40,6 +47,8 @@ class Stacker [
 
 main with stk:Stack, stkr:Stacker:
     stk = @Stack
+    print(0)
     !stk.list = null:ListNode
+    print(1)
     stkr = @Stacker
     _ = ^stkr.do(stk)
