@@ -108,7 +108,7 @@ public class CtrlFlowGraph {
     public static boolean isTyped() {return isTyped;}
     
     private CFGMethod methodToCfg(ASTMethod m, String classname, DataType classType, boolean isMain) {
-        CFGVar tmp = new CFGVar("");
+        CFGVar.resetTmp();
         HashSet<CFGVar> activeVars = new HashSet<>();
         CFGVar[] args = new CFGVar[0];
         Iterator<Entry<String, DataType>> iterator;
@@ -135,7 +135,7 @@ public class CtrlFlowGraph {
         ArrayList<BasicBlock> blocksInMethod = new ArrayList<>();
         ArrayList <CFGVar> vars = new ArrayList<>(Arrays.asList(args));
         vars.addAll(Arrays.asList(locals));
-        BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new HashSet<>(), tmp, locals, null);
+        BasicBlock start = new BasicBlock(blocksInMethod, m.name()+classname, m.body(), 0, activeVars, new HashSet<>(), locals, null);
         return new CFGMethod(m.name()+classname, args, locals, start, blocksInMethod, vars);
     }
 

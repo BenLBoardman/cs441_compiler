@@ -6,6 +6,7 @@ public non-sealed class CFGVar implements CFGValue {
     private final String name;
     private final int version;
     private final DataType type;
+    private static CFGVar tmp;
     private boolean shldTag;
 
     public CFGVar(String name, int version, DataType type) {
@@ -36,9 +37,18 @@ public non-sealed class CFGVar implements CFGValue {
         return type;
     }
 
-    public CFGVar(CFGVar prev) {
-        this(prev.name, prev.version + 1, prev.type);
+    public static CFGVar makeTmpVar(DataType type) {
+        tmp = new CFGVar(tmp, type);
+        return tmp;
     }
+
+    public static void resetTmp() {
+        tmp = new CFGVar("", null);
+    }
+
+    //public CFGVar(CFGVar prev) {
+    //    this(prev.name, prev.version + 1, prev.type);
+    //}
 
     //create a CFGVar with previous-based numbering and a specified data type - should only be used for temps!
     public CFGVar(CFGVar prev, DataType type) {
@@ -46,9 +56,9 @@ public non-sealed class CFGVar implements CFGValue {
     }
 
     //create a CFGVar with no type - should only be used for the first temp!
-    public CFGVar(String name) {
-        this(name, null);
-    }
+    //public CFGVar(String name) {
+    //    this(name, null);
+    //}
 
     public CFGVar(String name, DataType type) {
         this(name, -1, type);
