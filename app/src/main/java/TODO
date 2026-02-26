@@ -1,6 +1,17 @@
 **TODO**
 
-Attempt to do type checking fully in the parser
-
-Refactor CFG stuff?
-    Remove switch spam & use more polymorphism
+boolean data type\
+    new "bool" token
+    parser changes in how types of some binary ops and variables are calculated
+char data type
+    same token/parse changes as before
+    type info carried into backend and/or simulator/interpreter changes to run chars
+    minor CFG tweaks
+import classes from other files
+    serialization
+    some way to merge two CFGs (idea here would be that "library classes" could be created by serializing a CFG and then they'd be loaded by deserializing and prepending library CFGs to generated CFGs)
+better CFG temp variable creation
+    literally just a pile of refactoring
+better error printing (line no., store errors and emit multiple later instead of immediately emitting and exiting when an error is found)
+    track line numbers in tokenizer and parser
+    ErrorManager class to accumulate errors and decide when to emit/abort
