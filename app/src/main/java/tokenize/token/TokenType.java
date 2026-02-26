@@ -1,0 +1,40 @@
+package tokenize.token;
+public enum TokenType { 
+    // Fixed punctuation
+    LEFT_PAREN,
+    RIGHT_PAREN,
+    LEFT_BRACE,
+    RIGHT_BRACE,
+    LEFT_BRACK,
+    RIGHT_BRACK,
+    CARET,
+    AMPERSAND,
+    ATSIGN,
+    NOT,
+    DOT,
+    COLON,
+    COMMA,
+    UNDERSCORE,
+    // Keywords
+    THIS,
+    IF,
+    IFONLY,
+    ELSE,
+    WHILE,
+    RETURN,
+    METHOD,
+    CLASS,
+    PRINT,
+    FIELDS,
+    WITH,
+    LOCALS,
+    MAIN,
+    EOF,
+    // Tokens with data
+    OPERATOR,
+    NUMBER,
+    IDENTIFIER,
+    RETURNING,
+    INT,
+    NULL
+}

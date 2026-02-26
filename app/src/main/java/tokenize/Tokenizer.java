@@ -1,5 +1,7 @@
 package tokenize;
 
+import tokenize.token.*;
+
 public class Tokenizer {
 
     // We'll pre-allocate and reuse common tokens without data

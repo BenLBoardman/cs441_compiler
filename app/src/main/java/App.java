@@ -4,7 +4,7 @@ import java.nio.file.Files;
 
 import cfg.*;
 import tokenize.Tokenizer;
-import util.Output;
+import util.*;
 import parser.*;
 
 import java.nio.file.Path;
@@ -71,15 +71,18 @@ public class App {
         }
         Tokenizer tok = new Tokenizer(code);
         Parser p = new Parser(tok);
-        
         ParsedCode pc = p.parse();
+        ErrorAccumulator.emitErrors(); //emit any parser errors
         cfg = new CtrlFlowGraph();
         cfg.mkCfg(pc, typed);
+        ErrorAccumulator.emitErrors(); //emit any CFG errors
         if(ssa)
             cfg.toSSA(simple);
+        ErrorAccumulator.emitErrors(); //emit any SSA errors
         if(vn)
             cfg.localValueNumber();
         cfg.cleanBlocks();
+        ErrorAccumulator.emitErrors(); //emit any VN errors
         if(outFilePath == "") {
             System.out.println(cfg);
             return;

@@ -1,9 +1,9 @@
 package util;
 import java.util.HashMap;
 
-import tokenize.Identifier;
-import tokenize.Token;
-import tokenize.TokenType;
+import tokenize.token.Identifier;
+import tokenize.token.Token;
+import tokenize.token.TokenType;
 
 public record DataType(String typeName, boolean isObject) {
     private static HashMap<String, DataType> typeNames = new HashMap<>(); //list of all valid data types
