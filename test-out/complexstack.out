@@ -181,7 +181,7 @@ doStacker8:
 	%17 = call(%16, %stk)
 	jump doStacker9
 doStacker9:
-	%v1 = phi(doStacker13, %27, doStacker8, %17)
+	%v1 = phi(doStacker8, %17, doStacker13, %27)
 	%18 = %v1 - 1
 	%19 = %18 >> 1
 	%20 = %19 != 0
