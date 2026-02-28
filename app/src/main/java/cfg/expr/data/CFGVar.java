@@ -1,8 +1,11 @@
 package cfg.expr.data;
 
+import java.util.HashMap;
+
+import cfg.expr.CFGExpr;
 import util.DataType;
 
-public non-sealed class CFGVar implements CFGValue {
+public class CFGVar extends CFGValue {
     private final String name;
     private final int version;
     private final DataType type;
@@ -85,5 +88,12 @@ public non-sealed class CFGVar implements CFGValue {
         if(name.equals("this"))
             return "%this";
         return "%"+this.name+(this.version>=0?this.version:"");
+    }
+
+    @Override
+    public CFGExpr toSSA(HashMap<String, CFGVar> varMap) {
+        if(name.equals("") || name.equals("this"))
+                    return this;
+                return varMap.get(name);
     }
 }

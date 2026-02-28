@@ -165,7 +165,7 @@ public class CtrlFlowGraph {
     }
 
     public void toSSA(boolean simple) {
-        HashMap<String, CFGVar> varMap;
+        HashMap<String, CFGVar> varMap, maxVer;
         varMap = new HashMap<>();
         for(CFGVar v : main.vars())
             varMap.put(v.name(), v);
@@ -174,21 +174,24 @@ public class CtrlFlowGraph {
             mkSimplePhis(main.blocks()); // insert temp phis - simple ver
         else
             mkPhis(main.blocks()); // insert temp phis
+        maxVer = new HashMap<>(varMap);
         for (BasicBlock b : main.blocks())
-            b.toSSA(varMap, new HashMap<>(varMap));
+            b.toSSA(varMap, maxVer);
+            
 
         for(CFGClass c : classes) {
             for(CFGMethod m : c.methods()) {
                 varMap = new HashMap<>();
                 for(CFGVar v : m.vars())
                     varMap.put(v.name(), v);
+                maxVer = new HashMap<>(varMap);
                 setDominators(m.blocks());
                 if(simple)
                     mkSimplePhis(m.blocks());
                 else
                     mkPhis(m.blocks()); //insert temp phis
                 for(BasicBlock b : m.blocks())
-                    b.toSSA(varMap, new HashMap<>(varMap));
+                    b.toSSA(varMap, maxVer);
             }
         }
     }

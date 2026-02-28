@@ -1,9 +1,20 @@
 package cfg.expr;
 
 import cfg.expr.data.CFGVar;
+
+import java.util.HashMap;
+
 import cfg.expr.data.CFGValue;
 
-public record CFGGet(CFGVar arr, CFGValue val) implements CFGExpr {
+public class CFGGet extends CFGExpr {
+    private CFGVar arr;
+    private CFGValue val;
+
+    public CFGGet(CFGVar arr, CFGValue val) {
+        this.arr = arr;
+        this.val = val;
+    }
+
     @Override
     public String toString() {
         return "getelt(" + arr + ", " + val + ")";
@@ -14,5 +25,20 @@ public record CFGGet(CFGVar arr, CFGValue val) implements CFGExpr {
             return false;
         CFGGet g = (CFGGet)o;
         return g.arr.equals(this.arr) && g.val.equals(this.val);
+    }
+
+    @Override
+    public CFGExpr toSSA(HashMap<String, CFGVar> varMap) {
+        arr = (CFGVar)arr.toSSA(varMap);
+        val = (CFGValue)val.toSSA(varMap);
+        return this;
+    }
+
+    public CFGVar arr() {
+        return arr;
+    }
+
+    public CFGValue val() {
+        return val;
     }
 }

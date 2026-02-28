@@ -3,13 +3,14 @@ package cfg.jump;
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
 
-public non-sealed class CFGCondOp implements CFGJumpOp
+public class CFGCondOp extends CFGJumpOp
 {
     private CFGValue cond;
     private BasicBlock yes;
     private BasicBlock no;
 
-    public CFGCondOp(CFGValue cond, BasicBlock yes, BasicBlock no) {
+    public CFGCondOp(BasicBlock parent, CFGValue cond, BasicBlock yes, BasicBlock no) {
+        super(parent);
         this.cond = cond;
         this.yes = yes;
         this.no = no;

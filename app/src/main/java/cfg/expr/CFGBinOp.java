@@ -1,9 +1,34 @@
 package cfg.expr;
 
 import cfg.expr.data.CFGValue;
+import cfg.expr.data.CFGVar;
+
+import java.util.HashMap;
+
 import cfg.expr.data.CFGPrimitive;
 
-public record CFGBinOp(CFGValue lhs, String op, CFGValue rhs) implements CFGExpr {
+public class CFGBinOp extends CFGExpr {
+    private CFGValue lhs, rhs;
+    private String op;
+
+    public CFGBinOp(CFGValue lhs, String op, CFGValue rhs) {
+        this.lhs = lhs;
+        this.rhs = rhs;
+        this.op = op;
+    }
+
+    public CFGValue lhs() {
+        return lhs;
+    }
+
+    public CFGValue rhs() {
+        return rhs;
+    }
+
+    public String op() {
+        return op;
+    }
+
     @Override
     public String toString() {
         return lhs + " " + op + " " + rhs;
@@ -64,6 +89,13 @@ public record CFGBinOp(CFGValue lhs, String op, CFGValue rhs) implements CFGExpr
             }
             return CFGPrimitive.getPrimitive(rslt);
         }
+        return this;
+    }
+
+    @Override
+    public CFGExpr toSSA(HashMap<String, CFGVar> varMap) {
+        lhs = (CFGValue)lhs.toSSA(varMap);
+        rhs = (CFGValue)rhs.toSSA(varMap);
         return this;
     }
 }

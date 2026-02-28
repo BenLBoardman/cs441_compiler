@@ -1,11 +1,13 @@
 package cfg.jump;
 
+import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
 
-public non-sealed class CFGRetOp implements CFGJumpOp {
+public class CFGRetOp extends CFGJumpOp {
     private CFGValue val;
 
-    public CFGRetOp(CFGValue val) {
+    public CFGRetOp(BasicBlock parent, CFGValue val) {
+        super(parent);
         this.val = val;
     }
 

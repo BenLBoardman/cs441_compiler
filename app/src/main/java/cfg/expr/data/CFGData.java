@@ -2,5 +2,4 @@ package cfg.expr.data;
 
 import cfg.expr.CFGExpr;
 
-public sealed interface CFGData extends CFGExpr
-    permits CFGValue, CFGArray {}
+public abstract class CFGData extends CFGExpr {}

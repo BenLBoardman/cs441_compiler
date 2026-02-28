@@ -7,7 +7,7 @@ public class Output {
         Output.debug = debug;
     }
 
-    public static void debug(String... str) {
+    public static void debug(String str) {
         if(debug)
             System.out.println(str);
     }

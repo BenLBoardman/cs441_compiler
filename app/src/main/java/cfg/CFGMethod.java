@@ -44,13 +44,13 @@ public record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock 
                 switch (b.getJmp()) {
                     case CFGAutoJumpOp a:
                         BasicBlock succ = a.target();
-                        HashSet<BasicBlock> targetSuccs = succ.getSuccs();
+                        ArrayList<BasicBlock> targetSuccs = succ.getSuccs();
                         if(succ.getPreds().size() == 1) { //b is only prececessor of succ
                             b.addOps(succ.getOps());
                             b.setJmp(succ.getJmp());
-                            succ.setJmp(new CFGRetOp(CFGPrimitive.getPrimitive(0)));
+                            succ.setJmp(new CFGRetOp(succ, CFGPrimitive.getPrimitive(0)));
                             b.removeSucc(succ);
-                            for(BasicBlock s : new HashSet<BasicBlock>(targetSuccs)) {
+                            for(BasicBlock s : new ArrayList<BasicBlock>(targetSuccs)) {
                                 s.replacePred(succ, b);
                             }
                             changed = true;
@@ -63,7 +63,7 @@ public record CFGMethod(String name, CFGVar[] args, CFGVar[] locals, BasicBlock 
                             long val = ((CFGPrimitive)cond).value();
                             BasicBlock target = val > 0 ? c.yes() : c.no(); //branch always taken
                             BasicBlock fakeBranch = val < 0 ? c.yes() : c.no(); //branch never taken
-                            b.setJmp(new CFGAutoJumpOp(target));
+                            b.setJmp(new CFGAutoJumpOp(b, target));
                             b.removeSucc(fakeBranch);
                         }
                         break;

@@ -2,7 +2,7 @@ package cfg.expr.data;
 
 import java.util.HashMap;
 
-public non-sealed class CFGPrimitive implements CFGValue { 
+public class CFGPrimitive extends CFGValue { 
     private static HashMap<Long, CFGPrimitive> primitives = new HashMap<>();
     private long value;
 
@@ -24,5 +24,6 @@ public non-sealed class CFGPrimitive implements CFGValue {
 
     public long value() {
         return this.value;
-    } 
+    }
+    
 }
