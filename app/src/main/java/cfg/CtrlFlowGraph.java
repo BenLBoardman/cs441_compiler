@@ -22,20 +22,17 @@ public class CtrlFlowGraph {
     public static CFGMethod main;
     public static ArrayList<CFGClass> classes;
     public static ParsedCode parsedCode;
-    private static boolean isTyped;
 
     public CtrlFlowGraph() {
         //empty constructor
     }
 
-    public void mkCfg (ParsedCode code, boolean isTyped) {
+    public void mkCfg (ParsedCode code) {
         classes = new ArrayList<>();
         parsedCode = code;
         CFGDataBlock = new DataBlock(new ArrayList<>());
         //setup fields and vtables
         CFGArray vtable;
-        CFGArray fields;
-        CtrlFlowGraph.isTyped = isTyped;
         globals = new ArrayList<>();
         methods = new ArrayList<>();
         ArrayList<String> uniqueFields = new ArrayList<>();
@@ -66,22 +63,9 @@ public class CtrlFlowGraph {
                 }
             }
 
-            fields = new CFGArray("fields"+c.name(), new Integer[uniqueFields.size()]);
-            int numFields =  1;
-            for(int i = 0; i < uniqueFields.size(); i++) {
-                if(c.fields().containsKey(uniqueFields.get(i))) {
-                    fields.elems()[i] = 1 + numFields;
-                    numFields++;
-                }
-                else {
-                    fields.elems()[i] = 0;
-                }
-                
-            }
+
             CFGDataBlock.data().add(vtable);
-            if(!CtrlFlowGraph.isTyped())
-                CFGDataBlock.data().add(fields);
-            classes.add(new CFGClass(c.name(), fields, new ArrayList<String>(c.fields().keySet()), vtable, c.fields().size(), new ArrayList<>()));
+            classes.add(new CFGClass(c.name(), new ArrayList<String>(c.fields().keySet()), vtable, c.fields().size(), new ArrayList<>()));
         }
 
         basicBlocks = new ArrayList<>();
@@ -104,8 +88,6 @@ public class CtrlFlowGraph {
         }
         return null;
     }
-
-    public static boolean isTyped() {return isTyped;}
     
     private CFGMethod methodToCfg(ASTMethod m, String classname, DataType classType, boolean isMain) {
         CFGVar.resetTmp();

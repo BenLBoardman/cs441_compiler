@@ -24,7 +24,7 @@ public class App {
         }
         String inFilePath = args[0];
         String outFilePath = "";
-        boolean ssa = true, outName = false, simple = false, vn = true, typed = true;
+        boolean ssa = true, outName = false, simple = false, vn = true;
         if(args.length >= 3 && args[1].equals("-o")) {
             
         }
@@ -39,9 +39,6 @@ public class App {
                     break;
                 case "-noVN":
                     vn = false;
-                    break;
-                case "-notype":
-                    typed = false;
                     break;
                 case "-o":
                     if(nextArg >= (args.length - 1))
@@ -74,7 +71,7 @@ public class App {
         ParsedCode pc = p.parse();
         ErrorAccumulator.emitErrors(); //emit any parser errors
         cfg = new CtrlFlowGraph();
-        cfg.mkCfg(pc, typed);
+        cfg.mkCfg(pc);
         ErrorAccumulator.emitErrors(); //emit any CFG errors
         if(ssa)
             cfg.toSSA(simple);

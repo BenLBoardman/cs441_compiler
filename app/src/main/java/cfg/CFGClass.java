@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import cfg.expr.data.CFGArray;
 
-public record CFGClass(String name, CFGArray fields, ArrayList<String> fieldNames, CFGArray vtable, int numFields, ArrayList<CFGMethod> methods) {
+public record CFGClass(String name, ArrayList<String> fieldNames, CFGArray vtable, int numFields, ArrayList<CFGMethod> methods) {
     @Override public String toString() { 
         StringBuilder sb = new StringBuilder();
         for(CFGMethod m : methods) {
