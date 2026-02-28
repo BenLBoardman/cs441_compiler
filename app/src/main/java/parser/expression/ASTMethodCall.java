@@ -1,8 +1,12 @@
-package parser;
+package parser.expression;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+
+import parser.ASTClass;
+import parser.ASTMethod;
+
 import java.util.Iterator;
 
 import util.DataType;

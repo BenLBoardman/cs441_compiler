@@ -1,7 +1,10 @@
-package parser;
+package parser.statement;
 
 import java.util.HashMap;
 
+import parser.ASTClass;
+import parser.expression.ASTExpression;
+import parser.expression.ASTVariable;
 import util.DataType;
 
 public record ASTAssignStmt(ASTVariable var, ASTExpression rhs) implements ASTStatement{

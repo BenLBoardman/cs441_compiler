@@ -1,7 +1,8 @@
-package parser;
+package parser.expression;
 
 import java.util.HashMap;
 
+import parser.ASTClass;
 import util.DataType;
 
 public record ASTConstant(long value) implements ASTExpression {

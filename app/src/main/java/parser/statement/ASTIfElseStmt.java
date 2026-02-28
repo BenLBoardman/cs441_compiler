@@ -1,8 +1,10 @@
-package parser;
+package parser.statement;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import parser.ASTClass;
+import parser.expression.ASTExpression;
 import util.DataType;
 
 public record ASTIfElseStmt(ASTExpression cond, ArrayList<ASTStatement> body, ArrayList<ASTStatement> elseBody) implements ASTStatement{

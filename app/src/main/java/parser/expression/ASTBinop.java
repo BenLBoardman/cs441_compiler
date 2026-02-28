@@ -1,7 +1,8 @@
-package parser;
+package parser.expression;
 
 import java.util.HashMap;
 
+import parser.ASTClass;
 import util.DataType;
 
 public record ASTBinop(ASTExpression lhs, String op, ASTExpression rhs) implements ASTExpression {

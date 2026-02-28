@@ -3,6 +3,8 @@ package parser;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
+
+import parser.statement.ASTStatement;
 import util.DataType;
 
 public record ASTMethod(String name, String classname, HashMap<String, DataType> args, DataType returnType, HashMap<String, DataType> locals,

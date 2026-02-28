@@ -1,7 +1,10 @@
-package parser;
+package parser.statement;
 
 import java.util.HashMap;
 
+import parser.ASTClass;
+import parser.ASTMethod;
+import parser.expression.ASTExpression;
 import util.DataType;
 
 public record ASTReturnStmt(ASTExpression output, ASTMethod method) implements ASTStatement{

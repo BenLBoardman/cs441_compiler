@@ -1,7 +1,9 @@
-package parser;
+package parser.statement;
 
 import java.util.HashMap;
 
+import parser.ASTClass;
+import parser.expression.ASTExpression;
 import util.DataType;
 
 public record ASTFieldWriteStmt(ASTExpression base, String fieldname, ASTExpression rhs) implements ASTStatement{

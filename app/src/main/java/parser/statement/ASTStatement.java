@@ -1,6 +1,8 @@
-package parser;
+package parser.statement;
 
 import java.util.HashMap;
+
+import parser.ASTClass;
 import util.DataType;
 
 public sealed interface ASTStatement
