@@ -8,9 +8,10 @@ There is one required command-line arg and two optional arguments. With no argum
 - The required arg is the name of the file to compile. It must be located within `cs441-compiler/test-code`. It can be located in a subdirectory, but that needs to be specified in the argument.
 - `-noSSA` outputs the CFG before converting it to SSA and terminates the program there.
 - `-o <outfile>` specifies a file to write the program output to instead of the console. This file is created if it doesn't exist and placed in the directory `cs441-compiler/test-out`. The program will recognize subdirectories if they exist, but cannot create subdirectories of its own.
-- *new* `-simpleSSA` causes the compiler to use the more maximal phi-placement code developed in Milestone I to produce SSA code. This flag does not skip dominator calculation, so it should be compatible with all later optimizations.
-- *new* `-noVN` causes the compiler to skip the value numbering step of the process. If `-noSSA` is set, this will be set automatically,
-- *new* `-debug` allows debug printouts to work. This is not used anywhere in the current compiler version, but is placed for future use.
+- `-simpleSSA` causes the compiler to use the more maximal phi-placement code developed in Milestone I to produce SSA code. This flag does not skip dominator calculation, so it should be compatible with all later optimizations.
+- `-noVN` causes the compiler to skip the value numbering step of the process. If `-noSSA` is set, this will be set automatically,
+- *new* `-notype` constructs the CFG as if the code is untyped, generating tag checks and field read checks.
+- `-debug` allows debug printouts to work. This is not used anywhere in the current compiler version, but is placed for future use.
 
 ### Optimization - Milestone 1
 I chose to do pieces of multiple peephole optimizations.
@@ -23,6 +24,8 @@ Local value numbering is fully implemented. Any time a value is computed that ha
 - SSA code (phi placement excluded) has been cleaned up and sped up
 - Cases where a tag check or class initialization will generate a temp value that then gets assigned to be a named value are replaced to just fully assign to the named value, which improves IR readability.
 
+### Milestone 3
+- The target test code for the optimization here is `complexstack.comp`. I compiled it both with and without types (the typed version is `complexstackt.comp`), and removed all other test output code for simplicity. I also placed performance logs for typed and non-typed versions in the `perf/` directory. Typed code seems to run about 75% faster than untyped code and generates approximately 67% less output. 
 
 ### Test Code
 Several test-code files have been produced to highlight various tweaks, but the two most useful are `xtraphi.comp` and `vn_ex.comp`.
