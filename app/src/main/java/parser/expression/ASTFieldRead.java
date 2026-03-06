@@ -4,6 +4,8 @@ import java.util.HashMap;
 
 import parser.ASTClass;
 import util.DataType;
+import util.error.ErrorAccumulator;
+import util.error.UndefinedClassError;
 
 public record ASTFieldRead(ASTExpression base, String fieldname) implements ASTExpression {
 
@@ -12,8 +14,10 @@ public record ASTFieldRead(ASTExpression base, String fieldname) implements ASTE
         DataType baseType = base.getType(types, symbols);
         ASTClass classRef = types.get(baseType.typeName());
         DataType fieldType;
-        if(classRef == null)
-            throw new IllegalArgumentException("Error: field read references invalid class "+baseType.typeName());
+        if(classRef == null || classRef.type() == DataType.errType || classRef.type() == DataType.intType) {
+            ErrorAccumulator.addError(new UndefinedClassError(0, baseType));
+            return DataType.errType;
+        }
         fieldType = classRef.fields().get(fieldname);
         if(fieldType == null)
             throw new IllegalArgumentException("Error: Attempt to read nonexistent field "+fieldname+" of class "+classRef.name());

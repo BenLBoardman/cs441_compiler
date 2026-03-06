@@ -11,7 +11,6 @@ import cfg.expr.data.*;
 import cfg.op.*;
 import parser.expression.*;
 import parser.statement.*;
-import util.DataType;
 import util.Output;
 
 public // identifier: name of the basic block

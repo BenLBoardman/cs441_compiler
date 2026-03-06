@@ -8,6 +8,9 @@ import parser.statement.*;
 import tokenize.*;
 import tokenize.token.*;
 import util.DataType;
+import util.error.TypeAnnotationError;
+import util.error.ErrorAccumulator;
+import util.error.NoReturnTypeError;
 
 public class Parser {
     private Tokenizer tok;
@@ -223,10 +226,15 @@ public class Parser {
             if(id.getType() != TokenType.IDENTIFIER)
                 throw new IllegalArgumentException("Error parsing arg "+(args.size()+1)+" of method "+name+": Expected variable identifier, found"+id);
             argName = ((Identifier)id).name();
-            if(tok.next().getType() != TokenType.COLON)
-                throw new IllegalArgumentException("Error: Expected colon for type annotation following method arg "+argName);
-            argType = DataType.processType(tok.next());
-            args.put(argName, argType);
+            if(tok.peek().getType() != TokenType.COLON) {
+                ErrorAccumulator.addError(new TypeAnnotationError(tok.getLine(), argName));
+                args.put(argName, DataType.errType);
+            }
+            else {
+                tok.next();
+                argType = DataType.processType(tok.next());
+                args.put(argName, argType);
+            }
             Token punc = tok.peek();
             if (punc.getType() == TokenType.COMMA)
                 tok.next(); // throw away the comma
@@ -236,12 +244,17 @@ public class Parser {
         tok.next(); //throw out right paren
         
         //check for return datatype
-        DataType returnType;
-        Token ret = tok.next();
-        if(ret.getType() != TokenType.RETURNING) 
-            throw new IllegalArgumentException("Expected \"returning\" type statement, found"+ret);
-        Token type = tok.next();
-        returnType = DataType.processType(type); //TODO - test if thrown exception in submethod will work 
+        DataType returnType = null;
+        Token ret = tok.peek();
+        if(ret.getType() != TokenType.RETURNING) {
+            ErrorAccumulator.addError(new NoReturnTypeError(tok.getLine(), classname+"."+name));
+            returnType = DataType.errType;
+        }
+        else {
+            tok.next();
+            Token type = tok.next();
+            returnType = DataType.processType(type); //TODO - test if thrown exception in submethod will work
+        }
         Token with = tok.next();
         if(with.getType() != TokenType.WITH) 
             throw new IllegalArgumentException("Expected 'with', found"+with);
@@ -251,22 +264,32 @@ public class Parser {
         HashMap<String, DataType> locals = new HashMap<>();
         String locName;
         DataType locType;
-        while(tok.peek().getType() != TokenType.COLON) {
+        boolean linbrk = false;
+        while(tok.peek().getType() != TokenType.COLON && !linbrk) {
             Token id = tok.next();
             if(id.getType() != TokenType.IDENTIFIER)
                 throw new IllegalArgumentException("Error parsing local "+(locals.size()+1)+" of method "+name+": Expected variable identifier, found"+id);
             locName = ((Identifier)id).name();
-            if(tok.next().getType() != TokenType.COLON)
-                throw new IllegalArgumentException("Error: Expected colon for type annotation following method arg "+locName);
-            locType = DataType.processType(tok.next());
-            locals.put(locName, locType);
-            Token punc = tok.peek();
+            Token colTok  = tok.next();
+            linbrk = tok.isNewLine(); //test for line break between colon and next tok
+            Token typeTok = tok.peek();
+            Token punc;
+            if(colTok.getType() != TokenType.COLON || linbrk || (typeTok.getType() != TokenType.IDENTIFIER && typeTok.getType() != TokenType.INT)) {
+                ErrorAccumulator.addError(new TypeAnnotationError(tok.getLine(), locName));
+                locals.put(locName, DataType.errType);
+            } else {
+                locType = DataType.processType(typeTok);
+                locals.put(locName, locType);
+                tok.next();
+            }
+            punc = linbrk ? colTok : tok.peek();
             if (punc.getType() == TokenType.COMMA)
                 tok.next(); // throw away the comma
             else if(punc.getType() != TokenType.COLON)
                 throw new IllegalArgumentException("Expected either ',' or ':', found "+punc);
         }
-        tok.next(); //throw away colon
+        if(!linbrk)
+            tok.next(); //throw away colon
         ArrayList<ASTStatement> body = new ArrayList<>();
         ASTMethod method = new ASTMethod(name, classname, args, returnType, locals, body);
         while(tok.peek().getType() != TokenType.METHOD
@@ -301,7 +324,7 @@ public class Parser {
                 throw new IllegalArgumentException("Expected variable identifier, found"+id);
             locName = ((Identifier)id).name();
             if(tok.next().getType() != TokenType.COLON)
-                throw new IllegalArgumentException("Error: Expected colon for type annotation following method arg "+locName);
+                ErrorAccumulator.addError(new TypeAnnotationError(tok.getLine(), locName));
             locType = DataType.processType(tok.next());
             locals.put(locName, locType);
             Token punc = tok.peek();
@@ -342,10 +365,14 @@ public class Parser {
             if(id.getType() != TokenType.IDENTIFIER)
                 throw new IllegalArgumentException("Expected variable identifier, found"+id);
             fieldName = ((Identifier)id).name();
-            if(tok.next().getType() != TokenType.COLON)
-                throw new IllegalArgumentException("Error: Expected colon for type annotation following field name "+fieldName);
-            fieldType = DataType.processType(tok.next());
-            fields.put(fieldName, fieldType);
+            if(tok.peek().getType() != TokenType.COLON) {
+                ErrorAccumulator.addError(new TypeAnnotationError(tok.getLine(), fieldName));
+                fields.put(fieldName, DataType.errType);
+            } else {
+                tok.next();
+                fieldType = DataType.processType(tok.next());
+                fields.put(fieldName, fieldType);
+            }
             Token punc = tok.peek();
             if (punc.getType() == TokenType.COMMA)
                 tok.next(); // throw away the comma
@@ -367,19 +394,21 @@ public class Parser {
         ArrayList<ASTClass> classes = new ArrayList<>();
 
         types.put("int", new ASTClass("int", null, DataType.intType, null)); //dummy class for ints
+        types.put("err", new ASTClass("err", null, DataType.errType, null)); //dummy class for ints
         ASTClass astClass;
         while (tok.peek().getType() != TokenType.MAIN) {
             astClass = parseClass();
             classes.add(astClass);
             types.put(astClass.name(), astClass);
         }
+        ASTMethod main = parseMain(); //check that all vars use types that exist
+        ErrorAccumulator.emitErrors();
         for(ASTClass c : classes) {
             for(ASTMethod m : c.iterMethods()) {
                 m.checkTypes(types); //check that all vars use types that exist
             }
         }
-
-        ASTMethod main = parseMain(); //check that all vars use types that exist
+        
         main.checkTypes(types);
         return new ParsedCode(main, classes);
     }

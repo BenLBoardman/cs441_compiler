@@ -10,6 +10,8 @@ import parser.ASTMethod;
 import java.util.Iterator;
 
 import util.DataType;
+import util.error.ErrorAccumulator;
+import util.error.UndefinedClassError;
 
 public record ASTMethodCall(ASTExpression base, String methodname, List<ASTExpression> args) implements ASTExpression {
 
@@ -20,22 +22,25 @@ public record ASTMethodCall(ASTExpression base, String methodname, List<ASTExpre
         ASTMethod method;
         Iterator<Entry<String,DataType>> argIterator;
         Entry<String, DataType> argEntry;
-        if(classRef == null)
-            throw new IllegalArgumentException("Error: field read references invalid class "+baseType);
+        if(classRef == null || classRef.type() == DataType.errType || classRef.type() == DataType.intType) {
+            ErrorAccumulator.addError(new UndefinedClassError(0, baseType));
+            return DataType.errType;
+        }
+
         method = classRef.methods().get(methodname);
         if(method == null)
-            throw new IllegalArgumentException("Error: Attempt to call nonexistent method "+methodname+" of class "+classRef.name());
+            throw new IllegalArgumentException("Error: Attempt to call nonexistent method "+methodname+" of class "+classRef.name()); //TODO new error system
         argIterator = method.args().entrySet().iterator();
         for(int i = 0; i < args.size(); i++) {
             if(!argIterator.hasNext())
-                throw new IllegalArgumentException("Argument count mismatch calling method "+methodname);
+                throw new IllegalArgumentException("Argument count mismatch calling method "+methodname); //TODO new error system
             argEntry = argIterator.next();
             passedType = args.get(i).getType(types, symbols);
             expectedType = argEntry.getValue();
             if(!passedType.equals(expectedType)) 
-                throw new IllegalArgumentException("Argument "+i+" of method "+methodname+" should have type "+expectedType+", has actual type "+passedType);
+                throw new IllegalArgumentException("Argument "+i+" of method "+methodname+" should have type "+expectedType+", has actual type "+passedType); //TODO new error system
         }
         if(argIterator.hasNext())
-            throw new IllegalArgumentException("Argument count mismatch calling method "+methodname);
+            throw new IllegalArgumentException("Argument count mismatch calling method "+methodname); //TODO new error system
         return method.returnType();
     }}

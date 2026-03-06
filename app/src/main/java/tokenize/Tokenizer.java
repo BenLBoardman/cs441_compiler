@@ -39,6 +39,7 @@ public class Tokenizer {
 
     private final String text;
     private int current;
+    private int line = 1;
     private Token cached;
     public Tokenizer(String t) {
         this.text = t;
@@ -62,6 +63,8 @@ public class Tokenizer {
     private Token advanceCurrent() {
         while (current < text.length() && Character.isWhitespace(text.charAt(current))) {
             current++;
+            if(isNewLine())
+                line++;
         }
         if (current >= text.length()) {
             return this.eof;
@@ -143,5 +146,12 @@ public class Tokenizer {
                     throw new IllegalArgumentException("Unsupported character: "+text.charAt(current));
                 }
         }
+    }
+
+    public int getLine() {
+        return line;
+    }
+    public boolean isNewLine() {
+        return current < text.length() && (text.charAt(current) == '\n' || text.charAt(current) == '\r');   
     }
 }

@@ -6,6 +6,8 @@ import parser.ASTClass;
 import parser.expression.ASTExpression;
 import parser.expression.ASTVariable;
 import util.DataType;
+import util.error.AssignmentTypeError;
+import util.error.ErrorAccumulator;
 
 public record ASTAssignStmt(ASTVariable var, ASTExpression rhs) implements ASTStatement{
 
@@ -15,5 +17,5 @@ public record ASTAssignStmt(ASTVariable var, ASTExpression rhs) implements ASTSt
         varType = symbols.get(var.name());
         rhType = rhs.getType(types, symbols);
         if(!varType.equals(rhType))
-            throw new IllegalArgumentException("Expected assignment of type "+varType.typeName()+" for var "+var.name()+", received "+rhType.typeName());
+            ErrorAccumulator.addError(new AssignmentTypeError(0, varType, rhType));
     }}

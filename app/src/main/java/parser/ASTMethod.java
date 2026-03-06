@@ -6,6 +6,8 @@ import java.util.Map.Entry;
 
 import parser.statement.ASTStatement;
 import util.DataType;
+import util.error.ErrorAccumulator;
+import util.error.TypeAnnotationError;
 
 public record ASTMethod(String name, String classname, HashMap<String, DataType> args, DataType returnType, HashMap<String, DataType> locals,
         ArrayList<ASTStatement> body) {
@@ -17,12 +19,9 @@ public record ASTMethod(String name, String classname, HashMap<String, DataType>
     public void checkTypes(HashMap<String, ASTClass> types) {
         HashMap<String, DataType> symbolTable = new HashMap<>(args);
         symbolTable.putAll(locals);
-        if(types.get(returnType.typeName()) == null)
-            throw new IllegalArgumentException("Data type for method "+name+" is not defined in code.");
         for (Entry<String, DataType> a : symbolTable.entrySet()) {
             if (types.get(a.getValue().typeName()) == null)
-                throw new IllegalArgumentException("Error: Data type for " + a.getKey() + " in method " + name()
-                        + " is never declared in code.");
+                ErrorAccumulator.addError(new TypeAnnotationError(0, a.getKey()));
         }
         //do expr checking pass here
         for(ASTStatement s : body) {
