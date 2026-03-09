@@ -1,0 +1,14 @@
+class Generic [
+    fields x:int, y:Generic, z:Generic
+    method something() returning int with locals:
+        !this.x = 5
+        return 0
+]
+
+main with g:Generic, i:int:
+    i = 0
+    while(i < 5000): {
+        g = @Generic
+        _ = ^g.something()
+        i = (i + 1)
+    }

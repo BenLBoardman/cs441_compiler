@@ -1,0 +1,20 @@
+data:
+global array vtblGeneric: { doNothingGeneric }
+code:
+
+doNothingGeneric(%this):
+	ret 0
+
+main:
+	jump main1
+main1:
+	%i1 = phi(main, 0, main2, %i2)
+	%0 = %i1 < 5000
+	if %0 then main2 else main3
+main2:
+	%g0 = alloc(3)
+	store(%g0, @vtblGeneric)
+	%i2 = %i1 + 1
+	jump main1
+main3:
+	ret 0

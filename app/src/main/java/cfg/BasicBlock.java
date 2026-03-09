@@ -12,6 +12,8 @@ import cfg.op.*;
 import parser.expression.*;
 import parser.statement.*;
 import util.Output;
+import util.error.ErrorAccumulator;
+import util.error.NoSuchFieldError;
 
 public // identifier: name of the basic block
 // actives: list of most recent variable versions active in the block
@@ -294,8 +296,7 @@ class BasicBlock {
     // do majority of work to actually set up block - despite being non-static,
     // mostly operates on the static field currBlock
     private void setupBlock(ArrayList<BasicBlock> blocksInMethod, String blockBaseName, ArrayList<ASTStatement> stmts,
-            int startIndex,
-            CFGVar[] locals, BasicBlock jmpBack) {
+            int startIndex, CFGVar[] locals, BasicBlock jmpBack) {
         if (identifier == null || identifier.equals(""))
             setIdentifier(blockBaseName);
         HashSet<BasicBlock> localPreds = new HashSet<>();
@@ -373,10 +374,12 @@ class BasicBlock {
                     branchEntryBlock = currBlock;
                     ifBlk = new BasicBlock(blocksInMethod);
                     ifBlk.setPredsActives(localPreds, actives);
+                    afterIf = new BasicBlock(blocksInMethod);
                     currBlock = ifBlk;
                     ifBlk.setupBlock(blocksInMethod, blockBaseName, io.body(), 0, locals, afterIf);
-                    afterIf = new BasicBlock(blocksInMethod);
+                    localPreds.add(ifBlk);
                     afterIf.setPredsActives(localPreds, actives);
+                    currBlock = afterIf;
                     afterIf.setupBlock(blocksInMethod, blockBaseName, stmts, i + 1, locals, jmpBack);
                     branchEntryBlock.jmp = new CFGCondOp(branchEntryBlock, cond, ifBlk, afterIf);
                     localPreds.clear();
@@ -394,7 +397,6 @@ class BasicBlock {
                     loopheadEnd.addActives(actives);
                     BasicBlock body = new BasicBlock(blocksInMethod, blockBaseName, w.body(), 0, actives, localPreds,
                             locals, loopheadStart);
-                    loopheadEnd.addPred(body);
                     BasicBlock after = new BasicBlock(blocksInMethod, blockBaseName, stmts, i + 1, actives, localPreds,
                             locals, jmpBack);
                     localPreds.remove(loopheadEnd);
@@ -411,16 +413,17 @@ class BasicBlock {
                             locals, true); // evaluate rhs first
                     // can safely cast obj since it is known to be a var identifier by tokenizer
                     CFGVar obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true);
-                    int fieldId = CtrlFlowGraph.getFieldId(f.fieldname()); // get index of field in fields arr
-                    if (fieldId == -1)
-                        throw new IllegalArgumentException("Attempt to modify never-declared field " + f.fieldname());
                     BasicBlock getField = currBlock;
 
                     CFGVar offset = CFGVar.makeTmpVar(null);
                     CFGClass cl = CtrlFlowGraph.findClass(obj.type().typeName());
-                    fieldId = cl.getFieldId(f.fieldname());
-                    getField.addOp(new CFGAssn(offset, new CFGBinOp(obj, "+", CFGPrimitive.getPrimitive(8 * fieldId))));
-                    getField.addOp(new CFGStore(offset, objToStore));
+                    int fieldId = cl.getFieldId(f.fieldname());
+                    if(fieldId == -1) {
+                        ErrorAccumulator.addError(new NoSuchFieldError(0, cl.name(), f.fieldname()));
+                        break;
+                    }
+                    getField.addOp(new CFGAssn(offset, new CFGBinOp(obj, "+", CFGPrimitive.getPrimitive(8))));
+                    getField.addOp(new CFGSet(offset, CFGPrimitive.getPrimitive(fieldId), objToStore));
                     break;
                 case ASTReturnStmt r:
                     CFGValue valToReturn = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, r.output(), locals,
@@ -450,6 +453,13 @@ class BasicBlock {
             }
         }
         return;
+    }
+
+    private void clearSuccs() {
+        for(BasicBlock s : succs) {
+            succs.remove(s);
+            s.preds.remove(this);
+        }
     }
 
     public void toSSA(HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
@@ -680,40 +690,47 @@ class BasicBlock {
             case ASTClassRef c: // used for class reference in a complex expression, so we need to return an
                                 // anonymous(temp) value
                 CFGClass classData = CtrlFlowGraph.findClass(c.classname());
-                CFGVar cRef = assn;
+                CFGVar vtPtr = assn;
+                CFGVar cPtr;
                 if (classData == null)
                     throw new IllegalArgumentException("Class " + c.classname() + " is undefined");
-                if (cRef == null) {
-                    cRef = CFGVar.makeTmpVar(null);
-                    actives.add(cRef);
+                cPtr = CFGVar.makeTmpVar(null);
+
+                currBlock.addOp(new CFGAssn(cPtr, new CFGAlloc(
+                CFGPrimitive.getPrimitive(classData.numFields()+4)))); //fields plus three GC slots plus vtable ptr
+                if (vtPtr == null) {
+                    vtPtr = CFGVar.makeTmpVar(null);
+                    actives.add(vtPtr);
                 }
-                currBlock.addOp(new CFGAssn(cRef, new CFGAlloc(
-                CFGPrimitive.getPrimitive(classData.numFields() + 1))));
-                currBlock.addOp(new CFGStore(cRef, classData.vtable()));
-                out = cRef;
+                currBlock.addOp(new CFGSet(cPtr, CFGPrimitive.getPrimitive(2), classData.getBitMap())); //set bitmap
+                currBlock.addOp(new CFGAssn(vtPtr, new CFGBinOp(cPtr, "+", CFGPrimitive.getPrimitive(24)))); //assign vtable pointer
+                currBlock.addOp(new CFGStore(vtPtr, classData.vtable()));
+                out = vtPtr;
                 break;
             case ASTFieldRead f:
-                int fieldId = CtrlFlowGraph.getFieldId(f.fieldname());
-                if (fieldId == -1)
-                    throw new IllegalArgumentException(
-                            "Code attempts to read from never-defined field " + f.fieldname());
-                CFGVar obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true), field;
-                CFGVar offset = CFGVar.makeTmpVar(null);
-                CFGClass cl = CtrlFlowGraph.findClass(obj.type().typeName());
-                fieldId = cl.getFieldId(f.fieldname());
-                currBlock.addOp(new CFGAssn(offset, new CFGBinOp(obj, "+", CFGPrimitive.getPrimitive(8 * fieldId))));
+                CFGVar vtbl = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true), field, fields;
+                CFGVar fieldsAddr = CFGVar.makeTmpVar(null);
+                CFGClass cl = CtrlFlowGraph.findClass(vtbl.type().typeName());
+                int fieldId = cl.getFieldId(f.fieldname());
+                if(fieldId == -1) {
+                    ErrorAccumulator.addError(new NoSuchFieldError(0, cl.name(), f.fieldname()));
+                    out = null;
+                    break;
+                }
+                currBlock.addOp(new CFGAssn(fieldsAddr, new CFGBinOp(vtbl, "+", CFGPrimitive.getPrimitive(8))));
+                fields = CFGVar.makeTmpVar(null);
                 field = CFGVar.makeTmpVar(null);
-                currBlock.addOp(new CFGAssn(field, new CFGLoad(offset)));
+                currBlock.addOp(new CFGAssn(field, new CFGGet(fieldsAddr, CFGPrimitive.getPrimitive(fieldId))));
                 out = field;
                 break;
             case ASTMethodCall m:
                 int methodId = CtrlFlowGraph.getMethodId(m.methodname());
                 if (methodId == -1)
                     throw new IllegalArgumentException("Attempt to call nonexistent method" + m.methodname());
-                obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, m.base(), locals, true);
+                CFGVar obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, m.base(), locals, true);
                 BasicBlock getMethodId = currBlock;
                 // load vtable, find method
-                CFGVar vtbl = CFGVar.makeTmpVar(null);
+                vtbl = CFGVar.makeTmpVar(null);
                 getMethodId.addOp(new CFGAssn(vtbl, new CFGLoad(obj)));
                 CFGVar methodAddr = CFGVar.makeTmpVar(null);
                 getMethodId.addOp(new CFGAssn(methodAddr, new CFGGet(vtbl, CFGPrimitive.getPrimitive(methodId)))); // get

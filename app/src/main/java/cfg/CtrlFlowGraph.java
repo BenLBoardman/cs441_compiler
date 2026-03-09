@@ -35,15 +35,9 @@ public class CtrlFlowGraph {
         CFGArray vtable;
         globals = new ArrayList<>();
         methods = new ArrayList<>();
-        ArrayList<String> uniqueFields = new ArrayList<>();
+        ArrayList<CFGVar> fields = new ArrayList<>();
         ArrayList<ASTMethod> uniqueMethods = new ArrayList<>();
         for(ASTClass c : code.classes) { // find all unique field & method names
-            for(String f : c.fields().keySet()) {
-                if(!uniqueFields.contains(f)) {
-                    uniqueFields.add(f);
-                    globals.add(f);
-                }
-            }
             for(ASTMethod m : c.iterMethods()) {
                 if(!uniqueMethods.contains(m)) 
                     uniqueMethods.add(m);
@@ -53,6 +47,10 @@ public class CtrlFlowGraph {
         }
         
         for(ASTClass c : code.classes) { // build fields and vtables
+            fields = new ArrayList<>();
+            for(Entry<String, DataType> f : c.fields().entrySet()) {
+                fields.add(new CFGVar(f.getKey(), f.getValue()));
+            }
             vtable = new CFGArray("vtbl"+c.name(), new String[uniqueMethods.size()]);
             for(int i = 0; i < uniqueMethods.size(); i++) {
                 if(c.methods().containsValue(uniqueMethods.get(i))) {
@@ -65,7 +63,7 @@ public class CtrlFlowGraph {
 
 
             CFGDataBlock.data().add(vtable);
-            classes.add(new CFGClass(c.name(), new ArrayList<String>(c.fields().keySet()), vtable, c.fields().size(), new ArrayList<>()));
+            classes.add(new CFGClass(c.name(), fields, vtable, c.fields().size(), new ArrayList<>()));
         }
 
         basicBlocks = new ArrayList<>();
