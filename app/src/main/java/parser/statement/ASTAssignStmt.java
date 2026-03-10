@@ -6,8 +6,8 @@ import parser.ASTClass;
 import parser.expression.ASTExpression;
 import parser.expression.ASTVariable;
 import util.DataType;
-import util.error.AssignmentTypeError;
 import util.error.ErrorAccumulator;
+import util.error.type.AssignmentTypeError;
 
 public record ASTAssignStmt(ASTVariable var, ASTExpression rhs) implements ASTStatement{
 

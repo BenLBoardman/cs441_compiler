@@ -1,4 +1,4 @@
-package util.error;
+package util.error.type;
 
 import util.DataType;
 

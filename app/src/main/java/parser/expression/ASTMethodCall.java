@@ -11,7 +11,7 @@ import java.util.Iterator;
 
 import util.DataType;
 import util.error.ErrorAccumulator;
-import util.error.UndefinedClassError;
+import util.error.type.UndefinedClassError;
 
 public record ASTMethodCall(ASTExpression base, String methodname, List<ASTExpression> args) implements ASTExpression {
 

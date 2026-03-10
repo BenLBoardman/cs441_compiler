@@ -1,6 +1,7 @@
-package util.error;
+package util.error.syntax;
 
-public class TypeAnnotationError extends TypeError {
+
+public class TypeAnnotationError extends SyntaxError {
     private String var;
 
     public TypeAnnotationError(int line, String var) {

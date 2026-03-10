@@ -6,7 +6,7 @@ import parser.ASTClass;
 import parser.expression.ASTExpression;
 import util.DataType;
 import util.error.ErrorAccumulator;
-import util.error.UndefinedClassError;
+import util.error.type.UndefinedClassError;
 
 public record ASTFieldWriteStmt(ASTExpression base, String fieldname, ASTExpression rhs) implements ASTStatement{
 

@@ -1,4 +1,6 @@
-package util.error;
+package util.error.type;
+
+import util.error.Error;
 
 public abstract class TypeError extends Error {
 

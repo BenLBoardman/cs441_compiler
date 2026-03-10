@@ -5,7 +5,7 @@ import java.util.HashMap;
 import parser.ASTClass;
 import util.DataType;
 import util.error.ErrorAccumulator;
-import util.error.UndefinedClassError;
+import util.error.type.UndefinedClassError;
 
 public record ASTFieldRead(ASTExpression base, String fieldname) implements ASTExpression {
 

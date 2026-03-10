@@ -7,7 +7,7 @@ import java.util.Map.Entry;
 import parser.statement.ASTStatement;
 import util.DataType;
 import util.error.ErrorAccumulator;
-import util.error.TypeAnnotationError;
+import util.error.syntax.TypeAnnotationError;
 
 public record ASTMethod(String name, String classname, HashMap<String, DataType> args, DataType returnType, HashMap<String, DataType> locals,
         ArrayList<ASTStatement> body) {

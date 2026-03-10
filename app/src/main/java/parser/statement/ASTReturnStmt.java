@@ -7,7 +7,7 @@ import parser.ASTMethod;
 import parser.expression.ASTExpression;
 import util.DataType;
 import util.error.ErrorAccumulator;
-import util.error.ReturnMismatchError;
+import util.error.type.ReturnMismatchError;
 
 public record ASTReturnStmt(ASTExpression output, ASTMethod method) implements ASTStatement{
 

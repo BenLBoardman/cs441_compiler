@@ -8,9 +8,10 @@ import parser.statement.*;
 import tokenize.*;
 import tokenize.token.*;
 import util.DataType;
-import util.error.TypeAnnotationError;
 import util.error.ErrorAccumulator;
-import util.error.NoReturnTypeError;
+import util.error.syntax.MethodSyntaxError;
+import util.error.syntax.SyntaxErrorType;
+import util.error.syntax.TypeAnnotationError;
 
 public class Parser {
     private Tokenizer tok;
@@ -247,7 +248,7 @@ public class Parser {
         DataType returnType = null;
         Token ret = tok.peek();
         if(ret.getType() != TokenType.RETURNING) {
-            ErrorAccumulator.addError(new NoReturnTypeError(tok.getLine(), classname+"."+name));
+            ErrorAccumulator.addError(new MethodSyntaxError(tok.getLine(), classname+"."+name, SyntaxErrorType.NORETURN));
             returnType = DataType.errType;
         }
         else {
@@ -256,11 +257,15 @@ public class Parser {
             returnType = DataType.processType(type); //TODO - test if thrown exception in submethod will work
         }
         Token with = tok.next();
-        if(with.getType() != TokenType.WITH) 
-            throw new IllegalArgumentException("Expected 'with', found"+with);
+        if(with.getType() != TokenType.WITH) {
+            ErrorAccumulator.addError(new MethodSyntaxError(tok.getLine(), classname+"."+name, SyntaxErrorType.MISSING_WITH));
+            return null; //no point continuing parsing this method if we don't know what locals exist
+        }
         Token tLocals = tok.next();
-        if(tLocals.getType() != TokenType.LOCALS) 
-            throw new IllegalArgumentException("Expected 'locals', found"+tLocals);
+        if(tLocals.getType() != TokenType.LOCALS) {
+            ErrorAccumulator.addError(new MethodSyntaxError(tok.getLine(), classname+"."+name, SyntaxErrorType.MISSING_LOCALS));
+            return null; //no point continuing parsing this method if we don't know what locals exist
+        }
         HashMap<String, DataType> locals = new HashMap<>();
         String locName;
         DataType locType;
@@ -268,7 +273,7 @@ public class Parser {
         while(tok.peek().getType() != TokenType.COLON && !linbrk) {
             Token id = tok.next();
             if(id.getType() != TokenType.IDENTIFIER)
-                throw new IllegalArgumentException("Error parsing local "+(locals.size()+1)+" of method "+name+": Expected variable identifier, found"+id);
+                throw new IllegalArgumentException("Error parsing local "+(locals.size()+1)+" of method "+classname+"."+name+": Expected variable identifier, found"+id);
             locName = ((Identifier)id).name();
             Token colTok  = tok.next();
             linbrk = tok.isNewLine(); //test for line break between colon and next tok

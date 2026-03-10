@@ -4,8 +4,8 @@ import java.util.HashMap;
 
 import parser.ASTClass;
 import util.DataType;
-import util.error.BinopMismatchError;
 import util.error.ErrorAccumulator;
+import util.error.type.BinopMismatchError;
 
 public record ASTBinop(ASTExpression lhs, String op, ASTExpression rhs) implements ASTExpression {
     public boolean isBool() {
