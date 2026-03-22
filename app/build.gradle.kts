@@ -34,12 +34,16 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "App"
+    // this project uses a top-level App class in package `app`
+    mainClass.set("App")
 }
 
-tasks.jar {
+// ensure the jar task writes the Main-Class manifest entry so that
+// `java -jar app.jar` works as expected.  The application plugin does
+// not automatically modify the jar manifest, so we add it here.
+tasks.named<Jar>("jar") {
     manifest {
-        attributes["Main-Class"] = "App"
+        attributes("Main-Class" to application.mainClass.get())
     }
 }
 

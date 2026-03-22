@@ -1,6 +1,6 @@
 class ListNode [
     fields val, next
-    method getNext() with locals:
+    method getNext() returning ListNode with locals:
         return &this.next
     method getVal() with locals:
         return &this.val
@@ -14,7 +14,7 @@ class Stack [
 	    !this.list = tmp
 	    return 0
     
-    method pop() with locals tmp:
+    method pop() returning int with locals tmp:int:
         if (&this.list == 0): {
             return 0
         } else {

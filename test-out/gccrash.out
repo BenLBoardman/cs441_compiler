@@ -1,0 +1,30 @@
+data:
+global array vtblGeneric: { somethingGeneric }
+code:
+
+somethingGeneric(%this):
+	%0 = load(%this)
+	%1 = getelt(%0, 0)
+	%2 = call(%1, %0)
+	ret %2
+
+main:
+	jump main1
+main1:
+	%i1 = phi(main, 0, main2, %i2)
+	%0 = %i1 < 5000
+	if %0 then main2 else main3
+main2:
+	%1 = alloc(7)
+	setelt(%1, 2, 3)
+	%g0 = %1 + 24
+	store(%g0, @vtblGeneric)
+	%2 = %g0 + 8
+	setelt(%2, 0, %i1)
+	%3 = load(%g0)
+	%4 = getelt(%3, 0)
+	%5 = call(%4, %3)
+	%i2 = %i1 + 1
+	jump main1
+main3:
+	ret 0
