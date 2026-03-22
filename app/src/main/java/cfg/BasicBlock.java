@@ -9,7 +9,6 @@ import cfg.expr.*;
 import cfg.jump.*;
 import cfg.expr.data.*;
 import cfg.op.*;
-import parser.expression.*;
 import parser.statement.*;
 import util.Output;
 import util.error.ErrorAccumulator;
@@ -25,7 +24,7 @@ class BasicBlock {
     public static int numberFails = 0;
     public static int fieldFails = 0;
     public static int methodFails = 0;
-    private static BasicBlock currBlock;
+    public static BasicBlock currBlock;
 
     private String identifier;
     private HashSet<CFGVar> actives;
@@ -88,7 +87,7 @@ class BasicBlock {
                         CFGExpr expr = a.expr();
                         if (expr instanceof CFGBinOp) // evaluate binary op (if both primitives) - basically poor-man's
                                                       // constant propagation
-                            expr = ((CFGBinOp) expr).evalBinOp();
+                            expr = ((CFGBinOp) expr).evalBinOp(this, false);
                         a.setExpr(expr);
                         if (expr instanceof CFGBinOp) {
                             index = vn.indexOf(expr);
@@ -323,14 +322,7 @@ class BasicBlock {
                             break;
                         }
                     }
-                    CFGExpr operand = exprToCFG(assignment, blocksInMethod, blockBaseName, a.rhs(), locals, false);
-                    // CFGExpr tagged = operand;
-                    // if(operand instanceof CFGBinOp) {
-                    // tmp = new CFGVar(tmp);
-                    // tmp.setShouldTag(true);
-                    // tagged = tmp;
-                    // currBlock.addOp(new CFGAssn((CFGVar)tagged, operand));
-                    // }
+                    CFGExpr operand = a.rhs().toCFG(assignment, currBlock, false);
                     if (assignment == null)
                         throw new IllegalArgumentException("Post-Parse error: Cannot initialize variable " + name
                                 + " as it was neither passed as an argument nor declared as a local.");
@@ -338,7 +330,7 @@ class BasicBlock {
                         currBlock.addOp(new CFGAssn(assignment, operand));
                     break;
                 case ASTIfElseStmt ie:
-                    cond = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, ie.cond(), locals, true);
+                    cond = (CFGValue) ie.cond().toCFG(null, currBlock, true);
 
                     localPreds.add(currBlock);
                     branchEntryBlock = currBlock;
@@ -369,7 +361,7 @@ class BasicBlock {
                     localPreds.clear();
                     return;
                 case ASTIfOnlyStmt io:
-                    cond = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, io.cond(), locals, true);
+                    cond = (CFGValue) io.cond().toCFG(null, currBlock, true);
                     localPreds.add(currBlock);
                     branchEntryBlock = currBlock;
                     ifBlk = new BasicBlock(blocksInMethod);
@@ -391,7 +383,7 @@ class BasicBlock {
                     loopheadStart.setPredsActives(localPreds, actives);
                     localPreds.remove(branchEntryBlock);
                     loopheadStart.setIdentifier(blockBaseName);
-                    cond = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, w.cond(), locals, true);
+                    cond = (CFGValue) w.cond().toCFG(null, currBlock, true);
                     BasicBlock loopheadEnd = currBlock;
                     localPreds.add(loopheadEnd);
                     loopheadEnd.addActives(actives);
@@ -404,36 +396,31 @@ class BasicBlock {
                     branchEntryBlock.jmp = new CFGAutoJumpOp(branchEntryBlock, loopheadStart);
                     return;
                 case ASTPrintStmt p:
-                    CFGValue prt = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, p.str(), locals, true);
+                    CFGValue prt = (CFGValue) p.str().toCFG(null, currBlock, true);
 
                     currBlock.addOp(new CFGPrint(prt));
                     break;
                 case ASTFieldWriteStmt f: // can break if writing ptr to field
-                    CFGValue objToStore = (CFGValue) currBlock.exprToCFG(null, blocksInMethod, blockBaseName, f.rhs(),
-                            locals, true); // evaluate rhs first
+                    CFGValue objToStore = (CFGValue) f.rhs().toCFG(null, currBlock, true); // evaluate rhs first
                     // can safely cast obj since it is known to be a var identifier by tokenizer
-                    CFGVar obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true);
+                    CFGVar obj = (CFGVar) f.base().toCFG(null, currBlock, true);
                     BasicBlock getField = currBlock;
 
-                    CFGVar offset = CFGVar.makeTmpVar(null);
                     CFGClass cl = CtrlFlowGraph.findClass(obj.type().typeName());
                     int fieldId = cl.getFieldId(f.fieldname());
                     if(fieldId == -1) {
                         ErrorAccumulator.addError(new NoSuchFieldError(0, cl.name(), f.fieldname()));
                         break;
                     }
-                    getField.addOp(new CFGAssn(offset, new CFGBinOp(obj, "+", CFGPrimitive.getPrimitive(8))));
-                    getField.addOp(new CFGSet(offset, CFGPrimitive.getPrimitive(fieldId), objToStore));
+                    getField.addOp(new CFGSet(obj, CFGPrimitive.getPrimitive(fieldId+1), objToStore));
                     break;
                 case ASTReturnStmt r:
-                    CFGValue valToReturn = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, r.output(), locals,
-                            true);
+                    CFGValue valToReturn = (CFGValue) r.output().toCFG(null, currBlock, true);
 
                     currBlock.jmp = new CFGRetOp(currBlock, valToReturn);
                     break;
                 case ASTVoidStmt v:
-                    CFGValue voidRslt = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, v.rhs(), locals,
-                            true);
+                    CFGValue voidRslt = (CFGValue) v.rhs().toCFG(null, currBlock, true);
                     currBlock.addOp(new CFGAssn(CFGVar.makeTmpVar(null), voidRslt));
                     break;
                 default:
@@ -613,6 +600,10 @@ class BasicBlock {
         actives = v;
     }
 
+    public void addActive(CFGVar v) {
+        actives.add(v);
+    }
+
     public void addOp(CFGOp c) {
         ops.add(c);
     }
@@ -654,110 +645,16 @@ class BasicBlock {
     }
 
     // convert a potentially complex CFG expr into a series of statements
-    public CFGExpr exprToCFG(CFGVar assn, ArrayList<BasicBlock> blocksInMethod, String blockBaseName,
+    /*public CFGExpr exprToCFG(CFGVar assn, ArrayList<BasicBlock> blocksInMethod, String blockBaseName,
             ASTExpression expr, CFGVar[] locals, boolean requireVal) {
-        CFGExpr out;
-        switch (expr) {
-            case ASTConstant c:
-                return CFGPrimitive.getPrimitive(c.value());
-            case ASTNullExpr n:
-                return CFGPrimitive.getPrimitive(0);
-            case ASTVariable v:
-                CFGVar tmpVar = getActive(v.name());
-                if (tmpVar == null)
-                    throw new IllegalArgumentException("Attempted to access nonexistent or uninitialized variable "
-                            + v.name() + " (expr " + expr + ")");
-                return tmpVar;
-            case ASTBinop b:
-                CFGExpr lhs, rhs;
-                lhs = exprToCFG(null, blocksInMethod, blockBaseName, b.lhs(), locals, true);
-                rhs = exprToCFG(null, blocksInMethod, blockBaseName, b.rhs(), locals, true);
-
-                CFGVar tmp;
-                if (lhs instanceof CFGBinOp) {
-                    tmp = CFGVar.makeTmpVar(null);
-                    currBlock.addOp(new CFGAssn(tmp, lhs));
-                    lhs = tmp;
-                }
-                if (rhs instanceof CFGBinOp) {
-                    tmp = CFGVar.makeTmpVar(null);
-                    currBlock.addOp(new CFGAssn(tmp, rhs));
-                    rhs = tmp;
-                }
-
-                out = new CFGBinOp((CFGValue) lhs, b.op(), (CFGValue) rhs);
-                break;
-            case ASTClassRef c: // used for class reference in a complex expression, so we need to return an
-                                // anonymous(temp) value
-                CFGClass classData = CtrlFlowGraph.findClass(c.classname());
-                CFGVar vtPtr = assn;
-                CFGVar cPtr;
-                if (classData == null)
-                    throw new IllegalArgumentException("Class " + c.classname() + " is undefined");
-                cPtr = CFGVar.makeTmpVar(null);
-
-                currBlock.addOp(new CFGAssn(cPtr, new CFGAlloc(
-                CFGPrimitive.getPrimitive(classData.numFields()+4)))); //fields plus three GC slots plus vtable ptr
-                if (vtPtr == null) {
-                    vtPtr = CFGVar.makeTmpVar(null);
-                    actives.add(vtPtr);
-                }
-                currBlock.addOp(new CFGSet(cPtr, CFGPrimitive.getPrimitive(2), classData.getBitMap())); //set bitmap
-                currBlock.addOp(new CFGAssn(vtPtr, new CFGBinOp(cPtr, "+", CFGPrimitive.getPrimitive(24)))); //assign vtable pointer
-                currBlock.addOp(new CFGStore(vtPtr, classData.vtable()));
-                out = vtPtr;
-                break;
-            case ASTFieldRead f:
-                CFGVar vtbl = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, f.base(), locals, true), field, fields;
-                CFGVar fieldsAddr = CFGVar.makeTmpVar(null);
-                CFGClass cl = CtrlFlowGraph.findClass(vtbl.type().typeName());
-                int fieldId = cl.getFieldId(f.fieldname());
-                if(fieldId == -1) {
-                    ErrorAccumulator.addError(new NoSuchFieldError(0, cl.name(), f.fieldname()));
-                    out = null;
-                    break;
-                }
-                currBlock.addOp(new CFGAssn(fieldsAddr, new CFGBinOp(vtbl, "+", CFGPrimitive.getPrimitive(8))));
-                fields = CFGVar.makeTmpVar(null);
-                field = CFGVar.makeTmpVar(null);
-                currBlock.addOp(new CFGAssn(field, new CFGGet(fieldsAddr, CFGPrimitive.getPrimitive(fieldId))));
-                out = field;
-                break;
-            case ASTMethodCall m:
-                int methodId = CtrlFlowGraph.getMethodId(m.methodname());
-                if (methodId == -1)
-                    throw new IllegalArgumentException("Attempt to call nonexistent method" + m.methodname());
-                CFGVar obj = (CFGVar) exprToCFG(null, blocksInMethod, blockBaseName, m.base(), locals, true);
-                BasicBlock getMethodId = currBlock;
-                // load vtable, find method
-                vtbl = CFGVar.makeTmpVar(null);
-                getMethodId.addOp(new CFGAssn(vtbl, new CFGLoad(obj)));
-                CFGVar methodAddr = CFGVar.makeTmpVar(null);
-                getMethodId.addOp(new CFGAssn(methodAddr, new CFGGet(vtbl, CFGPrimitive.getPrimitive(methodId)))); // get
-                                                                                                                   // vtable
-                                                                                                                   // id
-                CFGVar callRslt = CFGVar.makeTmpVar(null);
-                CFGValue[] args = new CFGValue[m.args().size()];
-                for (int i = 0; i < args.length; i++) {
-                    ASTExpression e = m.args().get(i);
-                    args[i] = (CFGValue) exprToCFG(null, blocksInMethod, blockBaseName, e, locals, true);
-                }
-
-                currBlock.addOp(new CFGAssn(callRslt, new CFGCall(methodAddr, obj, args))); // figure out receiver
-                out = callRslt;
-                break;
-            case ASTThisExpr t:
-                return getActive("this");
-            default:
-                return null;
-        }
+        CFGExpr out =  expr.toCFG(assn, currBlock, requireVal);
         if (requireVal && !(out instanceof CFGVar)) {
             CFGVar tmp = CFGVar.makeTmpVar(null);
             currBlock.addOp(new CFGAssn(tmp, out));
             out = tmp;
         }
         return out;
-    }
+    }*/
 
     // determine if a name corresponds with an active variable
     // returns the variable if one exists and null otherwise

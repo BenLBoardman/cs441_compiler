@@ -3,15 +3,14 @@ global array vtblGeneric: { somethingGeneric }
 code:
 
 somethingGeneric(%this):
-	%0 = load(%this)
-	%1 = getelt(%0, 0)
-	%2 = call(%1, %0)
-	ret %2
+	setelt(%this, 1, 5)
+	%1 = getelt(%this, 1)
+	ret 0
 
 main:
 	jump main1
 main1:
-	%i1 = phi(main, 0, main2, %i2)
+	%i1 = phi(main2, %i2, main, 0)
 	%0 = %i1 < 5000
 	if %0 then main2 else main3
 main2:
@@ -19,11 +18,9 @@ main2:
 	setelt(%1, 2, 3)
 	%g0 = %1 + 24
 	store(%g0, @vtblGeneric)
-	%2 = %g0 + 8
-	setelt(%2, 0, %i1)
-	%3 = load(%g0)
-	%4 = getelt(%3, 0)
-	%5 = call(%4, %3)
+	%2 = load(%g0)
+	%3 = getelt(%2, 0)
+	%4 = call(%3, %g0)
 	%i2 = %i1 + 1
 	jump main1
 main3:

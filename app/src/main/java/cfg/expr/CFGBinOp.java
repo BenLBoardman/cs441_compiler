@@ -2,9 +2,12 @@ package cfg.expr;
 
 import cfg.expr.data.CFGValue;
 import cfg.expr.data.CFGVar;
+import cfg.op.CFGAssn;
+import util.DataType;
 
 import java.util.HashMap;
 
+import cfg.BasicBlock;
 import cfg.expr.data.CFGPrimitive;
 
 public class CFGBinOp extends CFGExpr {
@@ -42,7 +45,7 @@ public class CFGBinOp extends CFGExpr {
         return this.lhs == b.lhs && this.op == b.op && this.rhs == b.rhs;
     }
 
-    public CFGExpr evalBinOp() {
+    public CFGExpr evalBinOp(BasicBlock parent, boolean requireVal) {
         if (lhs instanceof CFGPrimitive && rhs instanceof CFGPrimitive) { // pre-evaluate double-constant binops
             CFGPrimitive lprim = (CFGPrimitive) lhs;
             CFGPrimitive rprim = (CFGPrimitive) rhs;
@@ -89,6 +92,11 @@ public class CFGBinOp extends CFGExpr {
                     rslt = 0;
             }
             return CFGPrimitive.getPrimitive(rslt);
+        }
+        if(requireVal) {
+            CFGVar out = CFGVar.makeTmpVar(DataType.intType);
+            parent.addOp(new CFGAssn(out, this));
+            return out;
         }
         return this;
     }

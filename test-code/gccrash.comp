@@ -2,6 +2,7 @@ class Generic [
     fields x:int, y:Generic, z:Generic
     method something() returning int with locals:
         !this.x = 5
+        _ = &this.x
         return 0
 ]
 
