@@ -1,6 +1,8 @@
 package cfg.op;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
@@ -29,6 +31,12 @@ public class CFGPrint extends CFGOp {
     @Override
     public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
         val = (CFGValue) val.toSSA(varMap);
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, BasicBlock current,
+            HashMap<CFGVar, ArrayList<BasicBlock>> varBlocks, HashSet<CFGVar> varKill) {
+        val.phiPlacementPass(globals, varKill);
     }
 }
 

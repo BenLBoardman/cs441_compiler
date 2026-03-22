@@ -1,6 +1,7 @@
 package cfg.expr;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.expr.data.CFGValue;
 import cfg.expr.data.CFGVar;
@@ -45,5 +46,17 @@ public class CFGCall extends CFGExpr {
 
     public CFGValue[] args() {
         return args;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        if (addr.readAcrossMultiBlocks(varKill))
+            globals.add(addr);
+        if (receiver.readAcrossMultiBlocks(varKill))
+            globals.add(receiver);
+        for (CFGValue x : args) {
+            if (x.readAcrossMultiBlocks(varKill))
+                globals.add((CFGVar) x);
+        }
     }
 }

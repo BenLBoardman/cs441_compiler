@@ -1,6 +1,7 @@
 package cfg.expr.data;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class CFGPrimitive extends CFGValue { 
     private static HashMap<Long, CFGPrimitive> primitives = new HashMap<>();
@@ -24,6 +25,11 @@ public class CFGPrimitive extends CFGValue {
 
     public long value() {
         return this.value;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        return;
     }
     
 }

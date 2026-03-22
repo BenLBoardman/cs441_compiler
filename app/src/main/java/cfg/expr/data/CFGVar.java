@@ -1,6 +1,7 @@
 package cfg.expr.data;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.expr.CFGExpr;
 import util.DataType;
@@ -95,5 +96,17 @@ public class CFGVar extends CFGValue {
         if(name.equals("") || name.equals("this"))
                     return this;
                 return varMap.get(name);
+    }
+
+    @Override
+    public boolean readAcrossMultiBlocks(HashSet<CFGVar> varKill) {
+        return !varKill.contains(this);
+    }
+
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        if(readAcrossMultiBlocks(varKill))
+            globals.add(this);
     }
 }

@@ -1,6 +1,9 @@
 package cfg.op;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.BasicBlock;
 import cfg.expr.CFGExpr;
@@ -9,7 +12,7 @@ import cfg.expr.data.CFGVar;
 public class CFGAssn extends CFGOp {
     private CFGVar var;
     private CFGExpr expr;
-    
+
     @Override
     public String toString() {
         return var + " = " + expr;
@@ -49,5 +52,19 @@ public class CFGAssn extends CFGOp {
         varMap.replace(storedVar.name(), newVar);
         maxVer.replace(newVar.name(), newVar);
         parent.addActive(newVar);
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, BasicBlock current,
+            HashMap<CFGVar, ArrayList<BasicBlock>> varBlocks, HashSet<CFGVar> varKill) {
+        expr.phiPlacementPass(globals, varKill);
+        varKill.add(var);
+        ArrayList<BasicBlock> blocksAssigned = varBlocks.get(var);
+        if (var.name().equals(""))
+            return;
+        else if (blocksAssigned == null)
+            varBlocks.put(var, new ArrayList<>(Arrays.asList(current)));
+        else if (!blocksAssigned.contains(current))
+            blocksAssigned.add(current);
     }
 }

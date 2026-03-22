@@ -1,5 +1,7 @@
 package cfg.expr.data;
 
+import java.util.HashSet;
+
 public class CFGArray extends CFGData {
     private String name;
     private Object[] elems;
@@ -24,5 +26,10 @@ public class CFGArray extends CFGData {
     @Override
     public String toString() {
         return "@" + name;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        return;
     }
 }

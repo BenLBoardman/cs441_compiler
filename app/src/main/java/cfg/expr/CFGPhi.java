@@ -1,9 +1,11 @@
 package cfg.expr;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
+import cfg.expr.data.CFGVar;
 
 public class CFGPhi extends CFGExpr {
     private ArrayList<BasicBlock> blocks;
@@ -31,5 +33,11 @@ public class CFGPhi extends CFGExpr {
 
     public ArrayList<CFGValue> varVersions() {
         return varVersions;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        //this should be an error state
+        return;
     }
 }

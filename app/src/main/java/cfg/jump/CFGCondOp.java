@@ -1,6 +1,8 @@
 package cfg.jump;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
@@ -41,5 +43,11 @@ public class CFGCondOp extends CFGJumpOp
     @Override
     public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
         cond = (CFGValue)cond.toSSA(varMap);
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, BasicBlock current,
+            HashMap<CFGVar, ArrayList<BasicBlock>> varBlocks, HashSet<CFGVar> varKill) {
+        cond.phiPlacementPass(globals, varKill);
     }
 }

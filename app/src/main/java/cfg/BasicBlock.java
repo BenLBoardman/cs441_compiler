@@ -239,7 +239,7 @@ class BasicBlock {
         return succs;
     }
 
-    public BasicBlock(ArrayList<BasicBlock> blocksInMethod) { // placeholder constructor to just initialize arraylists
+    public BasicBlock(ArrayList<BasicBlock> blocksInMethod) { // placeholder constructor to just initialize all the things
         inSSA = false;
         currBlock = this;
         blocksInMethod.add(this);

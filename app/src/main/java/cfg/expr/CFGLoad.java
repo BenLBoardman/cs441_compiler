@@ -1,6 +1,7 @@
 package cfg.expr;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.expr.data.CFGVar;
 
@@ -32,5 +33,11 @@ public class CFGLoad extends CFGExpr {
     public CFGExpr toSSA(HashMap<String, CFGVar> varMap) {
         base = (CFGVar)base.toSSA(varMap);
         return this;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        if(base.readAcrossMultiBlocks(varKill))
+            globals.add(base);
     }
 }

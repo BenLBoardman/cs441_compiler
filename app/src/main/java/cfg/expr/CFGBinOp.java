@@ -6,6 +6,7 @@ import cfg.op.CFGAssn;
 import util.DataType;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import cfg.BasicBlock;
 import cfg.expr.data.CFGPrimitive;
@@ -106,5 +107,13 @@ public class CFGBinOp extends CFGExpr {
         lhs = (CFGValue)lhs.toSSA(varMap);
         rhs = (CFGValue)rhs.toSSA(varMap);
         return this;
+    }
+
+    @Override
+    public void phiPlacementPass(HashSet<CFGVar> globals, HashSet<CFGVar> varKill) {
+        if(lhs.readAcrossMultiBlocks(varKill))
+            globals.add((CFGVar)lhs);
+        if(rhs.readAcrossMultiBlocks(varKill))
+            globals.add((CFGVar)rhs);
     }
 }
