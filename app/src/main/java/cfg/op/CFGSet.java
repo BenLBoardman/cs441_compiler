@@ -1,10 +1,13 @@
 package cfg.op;
 
+import java.util.HashMap;
+
+import cfg.BasicBlock;
 import cfg.expr.data.CFGData;
 import cfg.expr.data.CFGValue;
 import cfg.expr.data.CFGVar;
 
-public non-sealed class CFGSet implements CFGOp{
+public class CFGSet extends CFGOp{
     private CFGVar addr;
     private CFGValue index;
     private CFGData val;
@@ -44,6 +47,13 @@ public non-sealed class CFGSet implements CFGOp{
     @Override
     public String toString() {
         return "setelt(" + addr + ", " + index + ", " + val + ")";
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        addr = (CFGVar) addr.toSSA(varMap);
+        index = (CFGValue) index.toSSA(varMap);
+        val = (CFGData) val.toSSA(varMap);
     }
 }
 

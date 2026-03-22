@@ -1,9 +1,9 @@
 package cfg.jump;
 
 import cfg.BasicBlock;
-import cfg.CFGElement;
+import cfg.op.CFGOp;
 
-public  abstract class CFGJumpOp implements CFGElement {
+public  abstract class CFGJumpOp extends CFGOp {
     protected BasicBlock parent;
 
     public CFGJumpOp(BasicBlock parent) {

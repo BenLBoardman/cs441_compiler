@@ -1,6 +1,9 @@
 package cfg.jump;
 
+import java.util.HashMap;
+
 import cfg.BasicBlock;
+import cfg.expr.data.CFGVar;
 
 public class CFGAutoJumpOp extends CFGJumpOp {
     private BasicBlock target;
@@ -17,5 +20,10 @@ public class CFGAutoJumpOp extends CFGJumpOp {
     @Override
     public String toString() {
         return "jump " + target.getIdentifier();
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        return;
     }
 }

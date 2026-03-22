@@ -1,8 +1,12 @@
 package cfg.op;
 
-import cfg.expr.data.CFGValue;
+import java.util.HashMap;
 
-public non-sealed class CFGPrint implements CFGOp {
+import cfg.BasicBlock;
+import cfg.expr.data.CFGValue;
+import cfg.expr.data.CFGVar;
+
+public class CFGPrint extends CFGOp {
     private CFGValue val;
     
     public CFGPrint(CFGValue val) {
@@ -20,6 +24,11 @@ public non-sealed class CFGPrint implements CFGOp {
     @Override
     public String toString() {
         return "print(" + val + ")";
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        val = (CFGValue) val.toSSA(varMap);
     }
 }
 

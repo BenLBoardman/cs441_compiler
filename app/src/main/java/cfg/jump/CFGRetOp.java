@@ -1,7 +1,10 @@
 package cfg.jump;
 
+import java.util.HashMap;
+
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
+import cfg.expr.data.CFGVar;
 
 public class CFGRetOp extends CFGJumpOp {
     private CFGValue val;
@@ -22,5 +25,10 @@ public class CFGRetOp extends CFGJumpOp {
     @Override
     public String toString() {
         return "ret " + val;
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        val = (CFGValue)val.toSSA(varMap);
     }
 }

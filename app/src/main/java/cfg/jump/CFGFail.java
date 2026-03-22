@@ -1,6 +1,9 @@
 package cfg.jump;
 
+import java.util.HashMap;
+
 import cfg.BasicBlock;
+import cfg.expr.data.CFGVar;
 
 public class CFGFail extends CFGJumpOp
 {
@@ -12,4 +15,9 @@ public class CFGFail extends CFGJumpOp
     }
 
     @Override public String toString() {return "fail "+fail.name(); }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        return;
+    }
 }

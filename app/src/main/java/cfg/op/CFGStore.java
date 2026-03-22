@@ -1,9 +1,12 @@
 package cfg.op;
 
+import java.util.HashMap;
+
+import cfg.BasicBlock;
 import cfg.expr.data.CFGData;
 import cfg.expr.data.CFGVar;
 
-public non-sealed class CFGStore implements CFGOp {
+public class CFGStore extends CFGOp {
     private CFGVar base;
     private CFGData index;
 
@@ -31,5 +34,11 @@ public non-sealed class CFGStore implements CFGOp {
     @Override
     public String toString() {
         return "store(" + base + ", " + index + ")";
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        index = (CFGData)index.toSSA(varMap);
+        base = (CFGVar)base.toSSA(varMap);
     }
 }

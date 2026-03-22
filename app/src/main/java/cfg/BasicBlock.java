@@ -442,13 +442,6 @@ class BasicBlock {
         return;
     }
 
-    private void clearSuccs() {
-        for(BasicBlock s : succs) {
-            succs.remove(s);
-            s.preds.remove(this);
-        }
-    }
-
     public void toSSA(HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
         if (inSSA)
             return;
@@ -461,9 +454,9 @@ class BasicBlock {
             maxVer.replace(oldVer.name(), newVer);
         }
         for (CFGOp o : ops) {
-            opToSSA(o, varMap, maxVer);
+            o.toSSA(this, varMap, maxVer);
         }
-        jumpToSSA(varMap);
+        jmp.toSSA(this, varMap, maxVer);
         for (BasicBlock succ : succs) { // put all succs of this block that it also dominates into SSA
             Output.debug("Updating phis for successor: " + succ.identifier);
             HashMap<String, CFGVar> outVars = new HashMap<>(varMap);
@@ -487,50 +480,6 @@ class BasicBlock {
                 Output.debug(identifier + " dominates " + succ.identifier);
                 succ.toSSA(outVars, maxVer);
             }
-        }
-    }
-
-    void opToSSA(CFGOp o, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
-        switch (o) {
-            case CFGAssn a:
-                a.setExpr(a.expr().toSSA(varMap));
-                // do whatever thing needs to be added for exprs
-                CFGVar base = a.var();
-                CFGVar storedVar = varMap.get(base.name());
-                if (storedVar == null) // assignment to temporary value
-                    return;
-                CFGVar newVar = new CFGVar(storedVar, storedVar.type());
-                a.setVar(newVar);
-                varMap.replace(storedVar.name(), newVar);
-                maxVer.replace(newVar.name(), newVar);
-                actives.add(newVar);
-                break;
-            case CFGPrint p:
-                p.setVal((CFGValue) p.val().toSSA(varMap));
-                break;
-            case CFGSet s:
-                s.setAddr((CFGVar) s.addr().toSSA(varMap));
-                s.setIndex((CFGValue) s.index().toSSA(varMap));
-                s.setVal((CFGData) s.val().toSSA(varMap));
-                break;
-            case CFGStore s:
-                s.setIndex((CFGData) s.index().toSSA(varMap));
-                s.setBase((CFGVar) s.base().toSSA(varMap));
-                break;
-            default:
-                break;
-        }
-    }
-
-    void jumpToSSA(HashMap<String, CFGVar> varMap) {
-        switch (jmp) {
-            case CFGCondOp c:
-                c.setCond((CFGValue) c.cond().toSSA(varMap));
-                break;
-            case CFGRetOp r:
-                r.setVal((CFGValue) r.val().toSSA(varMap));
-            default:
-                break;
         }
     }
 
@@ -643,18 +592,6 @@ class BasicBlock {
     public void addDominator(BasicBlock b) {
         this.dominators.add(b);
     }
-
-    // convert a potentially complex CFG expr into a series of statements
-    /*public CFGExpr exprToCFG(CFGVar assn, ArrayList<BasicBlock> blocksInMethod, String blockBaseName,
-            ASTExpression expr, CFGVar[] locals, boolean requireVal) {
-        CFGExpr out =  expr.toCFG(assn, currBlock, requireVal);
-        if (requireVal && !(out instanceof CFGVar)) {
-            CFGVar tmp = CFGVar.makeTmpVar(null);
-            currBlock.addOp(new CFGAssn(tmp, out));
-            out = tmp;
-        }
-        return out;
-    }*/
 
     // determine if a name corresponds with an active variable
     // returns the variable if one exists and null otherwise

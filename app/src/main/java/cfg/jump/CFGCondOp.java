@@ -1,7 +1,10 @@
 package cfg.jump;
 
+import java.util.HashMap;
+
 import cfg.BasicBlock;
 import cfg.expr.data.CFGValue;
+import cfg.expr.data.CFGVar;
 
 public class CFGCondOp extends CFGJumpOp
 {
@@ -33,5 +36,10 @@ public class CFGCondOp extends CFGJumpOp
     @Override
     public String toString() {
         return "if " + cond + " then " + yes.getIdentifier() + " else " + no.getIdentifier();
+    }
+
+    @Override
+    public void toSSA(BasicBlock parent, HashMap<String, CFGVar> varMap, HashMap<String, CFGVar> maxVer) {
+        cond = (CFGValue)cond.toSSA(varMap);
     }
 }
