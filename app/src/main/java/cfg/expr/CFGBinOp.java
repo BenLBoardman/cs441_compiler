@@ -43,7 +43,7 @@ public class CFGBinOp extends CFGExpr {
     }
 
     public CFGExpr evalBinOp() {
-        if (lhs instanceof CFGPrimitive && rhs instanceof CFGPrimitive) { // optimize out double-constant binops
+        if (lhs instanceof CFGPrimitive && rhs instanceof CFGPrimitive) { // pre-evaluate double-constant binops
             CFGPrimitive lprim = (CFGPrimitive) lhs;
             CFGPrimitive rprim = (CFGPrimitive) rhs;
             long rslt;
@@ -84,6 +84,7 @@ public class CFGBinOp extends CFGExpr {
                 case "!=":rslt = lprim.value() != rprim.value() ? 1 : 0;
                     break;
                 case "&": rslt = lprim.value() & rprim.value(); break;
+                case "%": rslt = lprim.value() % rprim.value();
                 default: // should be unreachable
                     rslt = 0;
             }
