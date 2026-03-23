@@ -30,11 +30,11 @@ public enum TokenType {
     LOCALS,
     MAIN,
     EOF,
-    // Tokens with data
     OPERATOR,
     NUMBER,
     IDENTIFIER,
     RETURNING,
     INT,
-    NULL
+    NULL,
+    DOLLAR_SIGN
 }

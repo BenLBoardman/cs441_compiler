@@ -1,12 +1,12 @@
 class Generic [
-    fields x:int, y:Generic, z:Generic
+    fields x$int, y$Generic, z$Generic
     method something() returning int with locals:
         !this.x = 5
         _ = &this.x
         return 0
 ]
 
-main with g:Generic, i:int:
+main with g$Generic, i$int:
     i = 0
     while(i < 5000): {
         g = @Generic

@@ -36,6 +36,7 @@ public class Tokenizer {
     private final Returning returning = new Returning();
     private final Int intTok = new Int();
     private final NullTok nullTok = new NullTok();
+    private final DollarSign dollarSign = new DollarSign();
 
     private final String text;
     private int current;
@@ -86,7 +87,7 @@ public class Tokenizer {
             case '.': current++; return dot;
             case ',': current++; return comma;
             case '_': current++; return underscore;
-
+            case '$': current++; return dollarSign;
             case '<':
                 current++; 
                 if (text.charAt(current) == '=') { current++; return new Operator("<="); }
