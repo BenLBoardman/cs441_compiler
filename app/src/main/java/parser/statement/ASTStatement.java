@@ -6,6 +6,6 @@ import parser.ASTClass;
 import util.DataType;
 
 public sealed interface ASTStatement
-    permits ASTAssignStmt, ASTVoidStmt, ASTFieldWriteStmt, ASTIfElseStmt, ASTIfOnlyStmt, ASTWhileStmt, ASTReturnStmt, ASTPrintStmt {
+    permits ASTAssignStmt, ASTVoidStmt, ASTFieldWriteStmt, ASTIfElseStmt, ASTIfOnlyStmt, ASTWhileStmt, ASTReturnStmt, ASTPrintStmt, ASTArrayWrite {
         public void checkTypes(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols);
 }

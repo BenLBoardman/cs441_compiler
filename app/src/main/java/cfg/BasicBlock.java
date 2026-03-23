@@ -423,6 +423,12 @@ class BasicBlock {
                     CFGValue voidRslt = (CFGValue) v.rhs().toCFG(null, currBlock, true);
                     currBlock.addOp(new CFGAssn(CFGVar.makeTmpVar(null), voidRslt));
                     break;
+                case ASTArrayWrite y:
+                    CFGVar arr = (CFGVar)y.name().toCFG(null, currBlock, true);
+                    CFGValue index = (CFGValue)y.index().toCFG(null, currBlock, true);
+                    CFGValue rhs = (CFGValue)y.rhs().toCFG(null, currBlock, true);
+                    currBlock.addOp(new CFGSet(arr, index, rhs));
+                    break;
                 default:
                     break;
             }

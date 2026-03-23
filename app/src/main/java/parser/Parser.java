@@ -20,10 +20,29 @@ public class Parser {
     }
 
     public ASTExpression parseExpr(ASTMethod method) {
+        Token brack;
         switch (tok.next()) {
             case Eof eof: throw new IllegalArgumentException("No expression to parse: EOF");
             case NumberTok n: return new ASTConstant(n.value());
             case Identifier i: return new ASTVariable(i.name());
+            case Array r:
+                Token brace = tok.next();
+                if(brace.getType() != TokenType.LEFT_BRACE)
+                    throw new IllegalArgumentException("Expected left brace, received "+brace);
+                DataType arrType = DataType.processType(tok.next());
+                brace = tok.next();
+                if(brace.getType() != TokenType.RIGHT_BRACE)
+                    throw new IllegalArgumentException("Expected right brace, received "+brace);
+                brack = tok.next();
+                if(brack.getType() != TokenType.LEFT_BRACK)
+                    throw new IllegalArgumentException("Expected left bracket, received "+brack);
+                Token index = tok.next();
+                if(index.getType() != TokenType.NUMBER)
+                    throw new IllegalArgumentException("Number required for array length, recieved "+index);
+                brack = tok.next();
+                if(brack.getType() != TokenType.RIGHT_BRACK)
+                    throw new IllegalArgumentException("Expected left bracket, received "+brack);
+                return new ASTArrayAlloc(((NumberTok)index).value(), arrType);
             case LeftParen p:
                 // Should be start of a binary operation
                 ASTExpression lhs = parseExpr(method);
@@ -87,7 +106,20 @@ public class Parser {
             if(tok.next().getType() != TokenType.DOLLAR_SIGN)
                 throw new IllegalArgumentException("Error: Expected dollar sign for type annotation following null token ");
             return new ASTNullExpr(DataType.processType(tok.next()));
-            case Token o:
+        case Operator o: // process any number of statements that start with operators
+            if (o.op().equals("*")) { // array write *var[i] = val
+                ASTExpression aName = parseExpr(method);
+                brack = tok.next();
+                if (brack.getType() != TokenType.LEFT_BRACK)
+                    throw new IllegalArgumentException("Expected left bracket but found " + brack);
+                ASTExpression aIndex = parseExpr(method);
+                brack = tok.next();
+                if (brack.getType() != TokenType.RIGHT_BRACK)
+                    throw new IllegalArgumentException("Expected right bracket but found " + brack);
+                return new ASTArrayRead(aName, aIndex);
+            }
+            throw new IllegalArgumentException("Could not find valid statement starting with operator " + o.op());
+        case Token o:
                 throw new IllegalArgumentException("Token "+o+" is not a valid start of an expression");
         }
     }
@@ -195,6 +227,24 @@ public class Parser {
                 if(rparen.getType() != TokenType.RIGHT_PAREN)
                     throw new IllegalArgumentException("Expected ')' but found "+rparen);
                 return new ASTPrintStmt(prt);
+            case Operator o: //process any number of statements that start with operators
+                if (o.op().equals("*")) { // array write *var[i] = val
+                    tok.next();
+                    ASTExpression varName = parseExpr(method);
+                    Token brack = tok.next();
+                    if (brack.getType() != TokenType.LEFT_BRACK)
+                        throw new IllegalArgumentException("Expected left bracket but found " + brack);
+                    ASTExpression index = parseExpr(method);
+                    brack = tok.next();
+                    if (brack.getType() != TokenType.RIGHT_BRACK)
+                        throw new IllegalArgumentException("Expected right bracket but found " + brack);
+                    eql = tok.next();
+                    if(eql.getType() != TokenType.OPERATOR || !((Operator)eql).op().equals("="))
+                        throw new IllegalArgumentException("Expected '=' to continue array write, found "+eql);
+                    rhs = parseExpr(method);
+                    return new ASTArrayWrite(varName, index, rhs);
+                }
+                throw new IllegalArgumentException("Could not find valid statement starting with operator "+o.op());
             default: //nothing else, check if its a start of an expression and see if its a variable assignment
                 switch (parseExpr(method)) {
                     case ASTVariable v: // assignment: v = <expr>
@@ -352,9 +402,25 @@ public class Parser {
                 varTable.put(name, DataType.errType);
             } else {
                 tok.next();
-                type = DataType.processType(tok.next());
+                Token typeName = tok.next();
+                if(typeName.getType() == TokenType.ARRAY) {
+                    parseArrayDeclaration(name, varTable);
+                    return;
+                }
+                type = DataType.processType(typeName);
                 varTable.put(name, type);
             }
+    }
+
+    public void parseArrayDeclaration(String name, HashMap<String, DataType> varTable) {
+        Token brace = tok.next();
+        if (brace.getType() != TokenType.LEFT_BRACE)
+            throw new IllegalArgumentException("Expected left brace, received " + brace);
+        DataType arrType = DataType.processType(tok.next());
+        brace = tok.next();
+        if (brace.getType() != TokenType.RIGHT_BRACE)
+            throw new IllegalArgumentException("Expected right brace, received " + brace);
+        varTable.put(name, new DataType(arrType.typeName(), arrType.isObject(), true));
     }
 
     public ParsedCode parse() { // parse EVERYTHING in the input as a series of Classes

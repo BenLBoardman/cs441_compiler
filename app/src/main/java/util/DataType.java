@@ -5,10 +5,16 @@ import tokenize.token.Identifier;
 import tokenize.token.Token;
 import tokenize.token.TokenType;
 
-public record DataType(String typeName, boolean isObject) {
+public record DataType(String typeName, boolean isObject, boolean isArr) {
+
+    public DataType(String typeName, boolean isObject) {
+        this(typeName, isObject, false);
+    }
+    
     private static HashMap<String, DataType> typeNames = new HashMap<>(); //list of all valid data types
     public static final DataType intType = new DataType("int", false);
     public static final DataType errType = new DataType("err", false);
+    public static final DataType ptrType = new DataType("ptr", true); //generic pointer object, used internally
 
     public static DataType getType(Token t) {
         DataType type = typeNames.get(t.toString());

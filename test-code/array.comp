@@ -1,7 +1,38 @@
-main with arr$array{int}:
- arr = array[4]
- arr[0] = 1
- arr[1] = 3
- arr[2] = 5
- arr[3] = 7
- print(arr[3])
+class Sorter [
+    fields
+
+    method bubble(arr$array{int}, len$int) returning int with locals i$int, j$int:
+        i = 0
+        j = 0
+        while(i < len): {
+            j = 1
+            while(j < (len-i)): {
+                ifonly(*arr[j] < *arr[(j-1)]): {
+                    _ = ^this.swap(arr, j, (j-1))
+                }
+                j = (j + 1)
+            }
+            i = (i + 1)
+        }
+        return 0
+    
+    method swap(arr$array{int}, a$int, b$int) returning int with locals tmp$int:
+        tmp = *arr[a]
+        *arr[a] = *arr[b]
+        *arr[b] = tmp
+        return 0
+]
+
+main with arr$array{int}, s$Sorter:
+ arr = array{int}[4]
+ *arr[0] = 4
+ *arr[1] = 3
+ *arr[2] = 2
+ *arr[3] = 1
+ s = @Sorter
+ _ = ^s.bubble(arr, 4)
+ print(*arr[0])
+ print(*arr[1])
+ print(*arr[2])
+ print(*arr[3])
+ return 0
