@@ -37,6 +37,7 @@ public class Tokenizer {
     private final Int intTok = new Int();
     private final NullTok nullTok = new NullTok();
     private final DollarSign dollarSign = new DollarSign();
+    private final Array array = new Array();
 
     private final String text;
     private int current;
@@ -141,6 +142,7 @@ public class Tokenizer {
                         case "returning": return returning;
                         case "int": return intTok;
                         case "null": return nullTok;
+                        case "array": return array;
                         default: return new Identifier(fragment);
                     }
                 } else {

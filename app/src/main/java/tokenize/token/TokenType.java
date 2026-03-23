@@ -36,5 +36,6 @@ public enum TokenType {
     RETURNING,
     INT,
     NULL,
-    DOLLAR_SIGN
+    DOLLAR_SIGN,
+    ARRAY
 }

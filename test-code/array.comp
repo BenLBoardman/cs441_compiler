@@ -1,0 +1,7 @@
+main with arr$array{int}:
+ arr = array[4]
+ arr[0] = 1
+ arr[1] = 3
+ arr[2] = 5
+ arr[3] = 7
+ print(arr[3])
