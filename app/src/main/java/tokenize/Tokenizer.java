@@ -65,12 +65,17 @@ public class Tokenizer {
     private Token advanceCurrent() {
         while (current < text.length() && Character.isWhitespace(text.charAt(current))) {
             current++;
-            if(isNewLine())
+            if(isNewLine()) {
                 line++;
+            }
         }
         if (current >= text.length()) {
             return this.eof;
         }
+        return getCurTok();
+    }
+
+    public Token getCurTok() {
         switch (text.charAt(current)) {
             case '(': current++; return lp;
             case ')': current++; return rp;
@@ -88,6 +93,7 @@ public class Tokenizer {
             case '.': current++; return dot;
             case ',': current++; return comma;
             case '_': current++; return underscore;
+            case '#': while(!isNewLine()) { current++;} current++; return advanceCurrent();
             case '$': current++; return dollarSign;
             case '<':
                 current++; 
