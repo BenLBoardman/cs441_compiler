@@ -19,7 +19,13 @@ public non-sealed class ASTArrayWrite implements ASTStatement {
 
     @Override
     public void checkTypes(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) { //lhs and rhs types must match, index must have int type
-        //TODO
+        if(!index.getType(types, symbols).equals(DataType.intType))
+            throw new IllegalArgumentException("Array index must be of int type");
+        DataType arrType = name.getType(types, symbols);
+        DataType rhType = rhs.getType(types, symbols);
+        if(!arrType.noArray().equals(rhType)) {
+            throw new IllegalArgumentException("Array type must match assignment type");
+        }
     }
 
     public ASTExpression name() {

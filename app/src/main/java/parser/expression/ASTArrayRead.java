@@ -26,7 +26,7 @@ public class ASTArrayRead extends ASTExpression {
     public DataType getType(HashMap<String, ASTClass> types, HashMap<String, DataType> symbols) {
         if(!index.getType(types, symbols).equals(DataType.intType))
             throw new IllegalArgumentException("Array index must be of int type");
-        return arr.getType(types, symbols);
+        return arr.getType(types, symbols).noArray();
     }
 
     @Override

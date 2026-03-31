@@ -36,7 +36,11 @@ public record DataType(String typeName, boolean isObject, boolean isArr) {
 
     @Override
     public boolean equals(Object o) {
-        return this.typeName.equals(((DataType)o).typeName);
+        return this.typeName.equals(((DataType)o).typeName) && this.isArr == ((DataType)o).isArr();
+    }
+
+    public DataType noArray() {
+        return new DataType(typeName, isObject);
     }
 
     @Override

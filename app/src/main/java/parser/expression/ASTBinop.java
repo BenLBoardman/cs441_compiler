@@ -34,6 +34,9 @@ public class ASTBinop extends ASTExpression {
             ErrorAccumulator.addError(new BinopMismatchError(0, this.lhs.getType(types, symbols), this.rhs.getType(types, symbols)));
         else if(lhType.isObject() && !isBool())
             throw new IllegalArgumentException("Error: binary operands may only be objects for boolean operations");
+        else if (lhType.isArr()) {
+            throw new IllegalArgumentException("Error: binary operations cannot be performed on arrays");
+        }
         return DataType.intType; //either both sides are an int or this is an object boolean, which will return an int
     }
 
