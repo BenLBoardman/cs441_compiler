@@ -115,6 +115,12 @@ public class Parser {
                     throw new IllegalArgumentException("Expected right bracket but found " + brack);
                 return new ASTArrayRead(aName, aIndex);
             }
+            if(o.op().equals("-")) { //parse negative number constant
+                Token num = tok.next();
+                if(num.getType() != TokenType.NUMBER)
+                    throw new IllegalArgumentException("Error: Expected number after floating negative symbol");
+                return new ASTConstant(((NumberTok)num).value()*-1);
+            }
             throw new IllegalArgumentException("Could not find valid statement starting with operator " + o.op());
         case Token o:
                 throw new IllegalArgumentException("Token "+o+" is not a valid start of an expression");
