@@ -108,6 +108,7 @@ public class Tokenizer {
             case '-': current++; return new Operator("-");
             case '*': current++; return new Operator("*");
             case '/': current++; return new Operator("/");
+            case '%': current++; return new Operator("%");
             case '=': 
                 current++; 
                 if (text.charAt(current) != '=')

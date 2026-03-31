@@ -35,7 +35,7 @@ public class CFGBinOp extends CFGExpr {
 
     @Override
     public String toString() {
-        return lhs + " " + op + " " + rhs;
+        return lhs + " " + (op.equals("%") ? "mod" : op) + " " + rhs;
     }
 
     @Override
@@ -88,7 +88,7 @@ public class CFGBinOp extends CFGExpr {
                 case "!=":rslt = lprim.value() != rprim.value() ? 1 : 0;
                     break;
                 case "&": rslt = lprim.value() & rprim.value(); break;
-                case "%": rslt = lprim.value() % rprim.value();
+                case "%": rslt = lprim.value() % rprim.value(); break;
                 default: // should be unreachable
                     rslt = 0;
             }
