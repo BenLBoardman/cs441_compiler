@@ -25,24 +25,6 @@ public class Parser {
             case Eof eof: throw new IllegalArgumentException("No expression to parse: EOF");
             case NumberTok n: return new ASTConstant(n.value());
             case Identifier i: return new ASTVariable(i.name());
-            case Array r:
-                Token brace = tok.next();
-                if(brace.getType() != TokenType.LEFT_BRACE)
-                    throw new IllegalArgumentException("Expected left brace, received "+brace);
-                DataType arrType = DataType.processType(tok.next());
-                brace = tok.next();
-                if(brace.getType() != TokenType.RIGHT_BRACE)
-                    throw new IllegalArgumentException("Expected right brace, received "+brace);
-                brack = tok.next();
-                if(brack.getType() != TokenType.LEFT_BRACK)
-                    throw new IllegalArgumentException("Expected left bracket, received "+brack);
-                Token index = tok.next();
-                if(index.getType() != TokenType.NUMBER)
-                    throw new IllegalArgumentException("Number required for array length, recieved "+index);
-                brack = tok.next();
-                if(brack.getType() != TokenType.RIGHT_BRACK)
-                    throw new IllegalArgumentException("Expected left bracket, received "+brack);
-                return new ASTArrayAlloc(((NumberTok)index).value(), arrType);
             case LeftParen p:
                 // Should be start of a binary operation
                 ASTExpression lhs = parseExpr(method);
@@ -97,9 +79,24 @@ public class Parser {
                 return new ASTMethodCall(mbase, ((Identifier)mname).name(), args);
             case AtSign a:
                 Token cname = tok.next();
-                if (cname.getType() != TokenType.IDENTIFIER)
+                Token nxt = tok.peek();
+                if(nxt.getType() != TokenType.LEFT_BRACK) { //if not instantiating an array, exit
+                    if (cname.getType() != TokenType.IDENTIFIER)
                     throw new IllegalArgumentException("Expected valid class name but found: "+cname);
-                return new ASTClassRef(((Identifier)cname).name());
+                    return new ASTClassRef(((Identifier)cname).name());
+                }
+                if (cname.getType() != TokenType.IDENTIFIER && cname.getType() != TokenType.INT)
+                    throw new IllegalArgumentException("Expected valid data type name but found: "+cname);
+                tok.next();
+                DataType arrType = DataType.processType(cname);
+                Token index = tok.next();
+                if(index.getType() != TokenType.NUMBER)
+                    throw new IllegalArgumentException("Number required for array length, recieved "+index);
+                brack = tok.next();
+                if(brack.getType() != TokenType.RIGHT_BRACK)
+                    throw new IllegalArgumentException("Expected left bracket, received "+brack);
+                return new ASTArrayAlloc(((NumberTok)index).value(), arrType);
+
             case This t: 
                 return new ASTThisExpr(method.classname());
             case NullTok n:
@@ -403,8 +400,8 @@ public class Parser {
             } else {
                 tok.next();
                 Token typeName = tok.next();
-                if(typeName.getType() == TokenType.ARRAY) {
-                    parseArrayDeclaration(name, varTable);
+                if(tok.peek().getType() == TokenType.LEFT_BRACK) {
+                    parseArrayDeclaration(name, typeName, varTable);
                     return;
                 }
                 type = DataType.processType(typeName);
@@ -412,14 +409,12 @@ public class Parser {
             }
     }
 
-    public void parseArrayDeclaration(String name, HashMap<String, DataType> varTable) {
-        Token brace = tok.next();
-        if (brace.getType() != TokenType.LEFT_BRACE)
-            throw new IllegalArgumentException("Expected left brace, received " + brace);
-        DataType arrType = DataType.processType(tok.next());
-        brace = tok.next();
-        if (brace.getType() != TokenType.RIGHT_BRACE)
-            throw new IllegalArgumentException("Expected right brace, received " + brace);
+    public void parseArrayDeclaration(String name, Token type, HashMap<String, DataType> varTable) {
+        DataType arrType = DataType.processType(type);
+        tok.next(); //get rid of left bracket
+        Token brack = tok.next();
+        if (brack.getType() != TokenType.RIGHT_BRACK)
+            throw new IllegalArgumentException("Expected right bracket, received " + brack);
         varTable.put(name, new DataType(arrType.typeName(), arrType.isObject(), true));
     }
 

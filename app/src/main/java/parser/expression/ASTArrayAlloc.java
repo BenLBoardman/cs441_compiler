@@ -34,7 +34,7 @@ public class ASTArrayAlloc extends ASTExpression {
         currBlock.addOp(new CFGAssn(arrHead, new CFGAlloc(CFGPrimitive.getPrimitive(size+3))));
         //build field map
         String bits = "0";
-        if (this.type.isObject()) {
+        if (this.type.isObject()) { //index either needs to be known at compiletime or this must be calculated at runtime
             for (int i = 0; i < this.size; i++) {
                 bits = bits + "1";
             }
